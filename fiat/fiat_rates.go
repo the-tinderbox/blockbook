@@ -18,6 +18,8 @@ type OnNewFiatRatesTicker func(ticker *db.CurrencyRatesTicker)
 type RatesDownloaderInterface interface {
 	getTicker(timestamp *time.Time) (*db.CurrencyRatesTicker, error)
 	marketDataExists(timestamp *time.Time) (bool, error)
+
+	CurrentTickers() (*db.CurrencyRatesTicker, error)
 }
 
 // RatesDownloader stores FiatRates API parameters
@@ -35,9 +37,11 @@ type RatesDownloader struct {
 func NewFiatRatesDownloader(db *db.RocksDB, apiType string, params string, startTime *time.Time, callback OnNewFiatRatesTicker) (*RatesDownloader, error) {
 	var rd = &RatesDownloader{}
 	type fiatRatesParams struct {
-		URL           string `json:"url"`
-		Coin          string `json:"coin"`
-		PeriodSeconds int    `json:"periodSeconds"`
+		URL                string `json:"url"`
+		Coin               string `json:"coin"`
+		PlatformIdentifier string `json:"platformIdentifier"`
+		PlatformVsCurrency string `json:"platformVsCurrency"`
+		PeriodSeconds      int    `json:"periodSeconds"`
 	}
 	rdParams := &fiatRatesParams{}
 	err := json.Unmarshal([]byte(params), &rdParams)
@@ -58,7 +62,7 @@ func NewFiatRatesDownloader(db *db.RocksDB, apiType string, params string, start
 		rd.startTime = startTime // If startTime is nil, time.Now() will be used
 	}
 	if apiType == "coingecko" {
-		rd.downloader = NewCoinGeckoDownloader(rdParams.URL, rdParams.Coin, rd.timeFormat)
+		rd.downloader = NewCoinGeckoDownloader(db, rdParams.URL, rdParams.Coin, rdParams.PlatformIdentifier, rdParams.PlatformVsCurrency, rd.timeFormat)
 	} else {
 		return nil, fmt.Errorf("NewFiatRatesDownloader: incorrect API type %q", apiType)
 	}
@@ -73,7 +77,7 @@ func (rd *RatesDownloader) Run() error {
 
 	// Check if there are any tickers stored in database
 	glog.Infof("Finding last available ticker...")
-	ticker, err := rd.db.FiatRatesFindLastTicker()
+	ticker, err := rd.db.FiatRatesFindLastTicker("")
 	if err != nil {
 		glog.Errorf("RatesDownloader FindTicker error: %v", err)
 		return err
@@ -90,7 +94,7 @@ func (rd *RatesDownloader) Run() error {
 	} else {
 		// If found, continue downloading data from the next day of the last available record
 		glog.Infof("Last available ticker: %v", ticker.Timestamp)
-		timestamp = ticker.Timestamp
+		timestamp = &ticker.Timestamp
 	}
 	err = rd.syncHistorical(timestamp)
 	if err != nil {
@@ -167,7 +171,7 @@ func (rd *RatesDownloader) syncLatest() error {
 		sameTickerCounter = 0
 
 		glog.Infof("syncLatest: storing ticker for %v", ticker.Timestamp)
-		err = rd.db.FiatRatesStoreTicker(ticker)
+		err = rd.db.FiatRatesStoreTicker(nil, ticker)
 		if err != nil {
 			// If there's an error storing ticker (like missing rates), log it, wait and try again
 			glog.Errorf("syncLatest StoreTicker error: %v", err)
@@ -199,7 +203,7 @@ func (rd *RatesDownloader) syncHistorical(timestamp *time.Time) error {
 		}
 
 		glog.Infof("syncHistorical: storing ticker for %v", ticker.Timestamp)
-		err = rd.db.FiatRatesStoreTicker(ticker)
+		err = rd.db.FiatRatesStoreTicker(nil, ticker)
 		if err != nil {
 			// If there's an error storing ticker (like missing rates), log it and continue to the next day
 			glog.Errorf("syncHistorical error storing ticker for %v: %v", timestamp, err)

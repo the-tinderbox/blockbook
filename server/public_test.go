@@ -14,6 +14,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/flier/gorocksdb"
 	"github.com/golang/glog"
 	"github.com/gorilla/websocket"
 	"github.com/martinboehm/btcutil/chaincfg"
@@ -167,10 +168,15 @@ func insertFiatRate(date string, rates map[string]float64, d *db.RocksDB) error 
 		return err
 	}
 	ticker := &db.CurrencyRatesTicker{
-		Timestamp: convertedDate,
+		Timestamp: *convertedDate,
 		Rates:     rates,
 	}
-	return d.FiatRatesStoreTicker(ticker)
+	wb := gorocksdb.NewWriteBatch()
+	defer wb.Destroy()
+	if err := d.FiatRatesStoreTicker(wb, ticker); err != nil {
+		return err
+	}
+	return d.WriteBatch(wb)
 }
 
 // initTestFiatRates initializes test data for /api/v2/tickers endpoint

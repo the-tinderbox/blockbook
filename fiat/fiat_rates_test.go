@@ -9,9 +9,11 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"reflect"
 	"testing"
 	"time"
 
+	"github.com/flier/gorocksdb"
 	"github.com/golang/glog"
 	"github.com/martinboehm/btcutil/chaincfg"
 	"github.com/trezor/blockbook/bchain"
@@ -66,13 +68,9 @@ func bitcoinTestnetParser() *btc.BitcoinParser {
 }
 
 // getFiatRatesMockData reads a stub JSON response from a file and returns its content as string
-func getFiatRatesMockData(dateParam string) (string, error) {
+func getFiatRatesMockData(name string) (string, error) {
 	var filename string
-	if dateParam == "current" {
-		filename = "fiat/mock_data/current.json"
-	} else {
-		filename = "fiat/mock_data/" + dateParam + ".json"
-	}
+	filename = "fiat/mock_data/" + name + ".json"
 	mockFile, err := os.Open(filename)
 	if err != nil {
 		glog.Errorf("Cannot open file %v", filename)
@@ -98,11 +96,21 @@ func TestFiatRates(t *testing.T) {
 
 		if r.URL.Path == "/ping" {
 			w.WriteHeader(200)
-		} else if r.URL.Path == "/coins/bitcoin/history" {
+		} else if r.URL.Path == "/coins/ethereum/history" {
 			date := r.URL.Query()["date"][0]
 			mockData, err = getFiatRatesMockData(date) // get stub rates by date
-		} else if r.URL.Path == "/coins/bitcoin" {
+		} else if r.URL.Path == "/coins/ethereum" {
 			mockData, err = getFiatRatesMockData("current") // get "latest" stub rates
+		} else if r.URL.Path == "/coins/list" {
+			mockData, err = getFiatRatesMockData("coinlist")
+		} else if r.URL.Path == "/simple/supported_vs_currencies" {
+			mockData, err = getFiatRatesMockData("vs_currencies")
+		} else if r.URL.Path == "/simple/price" {
+			if r.URL.Query().Get("ids") == "ethereum" {
+				mockData, err = getFiatRatesMockData("simpleprice_base")
+			} else {
+				mockData, err = getFiatRatesMockData("simpleprice_tokens")
+			}
 		} else {
 			t.Errorf("Unknown URL path: %v", r.URL.Path)
 		}
@@ -114,11 +122,8 @@ func TestFiatRates(t *testing.T) {
 	}))
 	defer mockServer.Close()
 
-	// real CoinGecko API
-	//configJSON := `{"fiat_rates": "coingecko", "fiat_rates_params": "{\"url\": \"https://api.coingecko.com/api/v3\", \"coin\": \"bitcoin\", \"periodSeconds\": 60}"}`
-
 	// mocked CoinGecko API
-	configJSON := `{"fiat_rates": "coingecko", "fiat_rates_params": "{\"url\": \"` + mockServer.URL + `\", \"coin\": \"bitcoin\", \"periodSeconds\": 60}"}`
+	configJSON := `{"fiat_rates": "coingecko", "fiat_rates_params": "{\"url\": \"` + mockServer.URL + `\", \"coin\": \"ethereum\",\"platformIdentifier\":\"ethereum\",\"platformVsCurrency\": \"eth\",\"periodSeconds\": 60}"}`
 
 	type fiatRatesConfig struct {
 		FiatRates       string `json:"fiat_rates"`
@@ -141,6 +146,38 @@ func TestFiatRates(t *testing.T) {
 		t.Errorf("FiatRates init error: %v\n", err)
 	}
 	if config.FiatRates == "coingecko" {
+
+		currentTickers, err := fiatRates.downloader.CurrentTickers()
+		if err != nil {
+			t.Errorf("Error in CurrentTickers: %v", err)
+			return
+		}
+		if currentTickers == nil {
+			t.Errorf("CurrentTickers returned nil value")
+			return
+		}
+
+		wantCurrentTickers := db.CurrencyRatesTicker{
+			Rates: map[string]float64{
+				"aed": 8447.1,
+				"ars": 268901,
+				"aud": 3314.36,
+				"btc": 0.07531005,
+				"eth": 1,
+				"eur": 2182.99,
+				"ltc": 29.097696,
+				"usd": 2299.72,
+			},
+			TokenRates: map[string]float64{
+				"0x5e9997684d061269564f94e5d11ba6ce6fa9528c": 5.58195e-07,
+				"0x906710835d1ae85275eb770f06873340ca54274b": 1.39852e-10,
+			},
+			Timestamp: currentTickers.Timestamp,
+		}
+		if !reflect.DeepEqual(currentTickers, &wantCurrentTickers) {
+			t.Errorf("CurrentTickers() = %v, want %v", *currentTickers, wantCurrentTickers)
+		}
+
 		timestamp, err := fiatRates.findEarliestMarketData()
 		if err != nil {
 			t.Errorf("Error looking up earliest market data: %v", err)
@@ -167,10 +204,16 @@ func TestFiatRates(t *testing.T) {
 			glog.Errorf("Sync GetData error: %v", err)
 			return
 		}
-		err = fiatRates.db.FiatRatesStoreTicker(ticker)
-		if err != nil {
+		wb := gorocksdb.NewWriteBatch()
+		defer wb.Destroy()
+		if err := fiatRates.db.FiatRatesStoreTicker(wb, ticker); err != nil {
 			glog.Errorf("Sync StoreTicker error %v", err)
 			return
 		}
+		if err := d.WriteBatch(wb); err != nil {
+			glog.Errorf("Sync StoreTicker error %v", err)
+			return
+		}
+
 	}
 }

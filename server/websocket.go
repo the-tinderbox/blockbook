@@ -421,7 +421,7 @@ var requestHandlers = map[string]func(*WebsocketServer, *websocketChannel, *webs
 		}{}
 		err = json.Unmarshal(req.Params, &r)
 		if err == nil {
-			rv, err = s.getFiatRatesTickersList(r.Timestamp)
+			rv, err = s.getAvailableVsCurrencies(r.Timestamp)
 		}
 		return
 	},
@@ -998,7 +998,7 @@ func (s *WebsocketServer) getFiatRatesForTimestamps(timestamps []int64, currenci
 	return ret, err
 }
 
-func (s *WebsocketServer) getFiatRatesTickersList(timestamp int64) (interface{}, error) {
-	ret, err := s.api.GetFiatRatesTickersList(timestamp)
+func (s *WebsocketServer) getAvailableVsCurrencies(timestamp int64) (interface{}, error) {
+	ret, err := s.api.GetAvailableVsCurrencies(timestamp)
 	return ret, err
 }

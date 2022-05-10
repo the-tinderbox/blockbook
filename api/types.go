@@ -468,3 +468,22 @@ type MempoolTxids struct {
 	Mempool     []MempoolTxid `json:"mempool"`
 	MempoolSize int           `json:"mempoolSize"`
 }
+
+// FiatTicker contains formatted CurrencyRatesTicker data
+type FiatTicker struct {
+	Timestamp int64              `json:"ts,omitempty"`
+	Rates     map[string]float64 `json:"rates"`
+	Error     string             `json:"error,omitempty"`
+}
+
+// FiatTickers contains a formatted CurrencyRatesTicker list
+type FiatTickers struct {
+	Tickers []FiatTicker `json:"tickers"`
+}
+
+// AvailableVsCurrencies contains formatted data about available versus currencies for exchange rates
+type AvailableVsCurrencies struct {
+	Timestamp int64    `json:"ts,omitempty"`
+	Tickers   []string `json:"available_currencies"`
+	Error     string   `json:"error,omitempty"`
+}
