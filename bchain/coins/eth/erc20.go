@@ -107,7 +107,7 @@ func erc20GetTransfersFromTx(tx *rpcTransaction) ([]bchain.Erc20Transfer, error)
 }
 
 func (b *EthereumRPC) ethCall(data, to string) (string, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), b.timeout)
+	ctx, cancel := context.WithTimeout(context.Background(), b.Timeout)
 	defer cancel()
 	var r string
 	err := b.rpc.CallContext(ctx, &r, "eth_call", map[string]interface{}{

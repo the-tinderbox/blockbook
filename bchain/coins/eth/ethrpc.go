@@ -47,9 +47,9 @@ type Configuration struct {
 // EthereumRPC is an interface to JSON-RPC eth service.
 type EthereumRPC struct {
 	*bchain.BaseChain
-	client               *ethclient.Client
+	Client               *ethclient.Client
 	rpc                  *rpc.Client
-	timeout              time.Duration
+	Timeout              time.Duration
 	Parser               *EthereumParser
 	Mempool              *bchain.MempoolEthereumType
 	mempoolInitialized   bool
@@ -83,14 +83,14 @@ func NewEthereumRPC(config json.RawMessage, pushHandler func(bchain.Notification
 
 	s := &EthereumRPC{
 		BaseChain:   &bchain.BaseChain{},
-		client:      ec,
+		Client:      ec,
 		rpc:         rc,
 		ChainConfig: &c,
 	}
 
 	// always create parser
 	s.Parser = NewEthereumParser(c.BlockAddressesToKeep)
-	s.timeout = time.Duration(c.RPCTimeout) * time.Second
+	s.Timeout = time.Duration(c.RPCTimeout) * time.Second
 
 	// new blocks notifications handling
 	// the subscription is done in Initialize
@@ -144,10 +144,10 @@ func openRPC(url string) (*rpc.Client, *ethclient.Client, error) {
 
 // Initialize initializes ethereum rpc interface
 func (b *EthereumRPC) Initialize() error {
-	ctx, cancel := context.WithTimeout(context.Background(), b.timeout)
+	ctx, cancel := context.WithTimeout(context.Background(), b.Timeout)
 	defer cancel()
 
-	id, err := b.client.NetworkID(ctx)
+	id, err := b.Client.NetworkID(ctx)
 	if err != nil {
 		return err
 	}
@@ -214,7 +214,7 @@ func (b *EthereumRPC) subscribeEvents() error {
 	if err := b.subscribe(func() (*rpc.ClientSubscription, error) {
 		// invalidate the previous subscription - it is either the first one or there was an error
 		b.newBlockSubscription = nil
-		ctx, cancel := context.WithTimeout(context.Background(), b.timeout)
+		ctx, cancel := context.WithTimeout(context.Background(), b.Timeout)
 		defer cancel()
 		sub, err := b.rpc.EthSubscribe(ctx, b.chanNewBlock, "newHeads")
 		if err != nil {
@@ -230,7 +230,7 @@ func (b *EthereumRPC) subscribeEvents() error {
 	if err := b.subscribe(func() (*rpc.ClientSubscription, error) {
 		// invalidate the previous subscription - it is either the first one or there was an error
 		b.newTxSubscription = nil
-		ctx, cancel := context.WithTimeout(context.Background(), b.timeout)
+		ctx, cancel := context.WithTimeout(context.Background(), b.Timeout)
 		defer cancel()
 		sub, err := b.rpc.EthSubscribe(ctx, b.chanNewTx, "newPendingTransactions")
 		if err != nil {
@@ -306,7 +306,7 @@ func (b *EthereumRPC) reconnectRPC() error {
 		return err
 	}
 	b.rpc = rc
-	b.client = ec
+	b.Client = ec
 	return b.subscribeEvents()
 }
 
@@ -334,9 +334,9 @@ func (b *EthereumRPC) GetChainInfo() (*bchain.ChainInfo, error) {
 	if err != nil {
 		return nil, err
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), b.timeout)
+	ctx, cancel := context.WithTimeout(context.Background(), b.Timeout)
 	defer cancel()
-	id, err := b.client.NetworkID(ctx)
+	id, err := b.Client.NetworkID(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -373,9 +373,9 @@ func (b *EthereumRPC) getBestHeader() (*ethtypes.Header, error) {
 	}
 	if b.bestHeader == nil {
 		var err error
-		ctx, cancel := context.WithTimeout(context.Background(), b.timeout)
+		ctx, cancel := context.WithTimeout(context.Background(), b.Timeout)
 		defer cancel()
-		b.bestHeader, err = b.client.HeaderByNumber(ctx, nil)
+		b.bestHeader, err = b.Client.HeaderByNumber(ctx, nil)
 		if err != nil {
 			b.bestHeader = nil
 			return nil, err
@@ -407,9 +407,9 @@ func (b *EthereumRPC) GetBestBlockHeight() (uint32, error) {
 func (b *EthereumRPC) GetBlockHash(height uint32) (string, error) {
 	var n big.Int
 	n.SetUint64(uint64(height))
-	ctx, cancel := context.WithTimeout(context.Background(), b.timeout)
+	ctx, cancel := context.WithTimeout(context.Background(), b.Timeout)
 	defer cancel()
-	h, err := b.client.HeaderByNumber(ctx, &n)
+	h, err := b.Client.HeaderByNumber(ctx, &n)
 	if err != nil {
 		if err == ethereum.NotFound {
 			return "", bchain.ErrBlockNotFound
@@ -470,7 +470,7 @@ func (b *EthereumRPC) computeConfirmations(n uint64) (uint32, error) {
 }
 
 func (b *EthereumRPC) getBlockRaw(hash string, height uint32, fullTxs bool) (json.RawMessage, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), b.timeout)
+	ctx, cancel := context.WithTimeout(context.Background(), b.Timeout)
 	defer cancel()
 	var raw json.RawMessage
 	var err error
@@ -492,7 +492,7 @@ func (b *EthereumRPC) getBlockRaw(hash string, height uint32, fullTxs bool) (jso
 }
 
 func (b *EthereumRPC) getERC20EventsForBlock(blockNumber string) (map[string][]*rpcLog, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), b.timeout)
+	ctx, cancel := context.WithTimeout(context.Background(), b.Timeout)
 	defer cancel()
 	var logs []rpcLogWithTxHash
 	err := b.rpc.CallContext(ctx, &logs, "eth_getLogs", map[string]interface{}{
@@ -587,7 +587,7 @@ func (b *EthereumRPC) GetTransactionForMempool(txid string) (*bchain.Tx, error) 
 
 // GetTransaction returns a transaction by the transaction ID.
 func (b *EthereumRPC) GetTransaction(txid string) (*bchain.Tx, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), b.timeout)
+	ctx, cancel := context.WithTimeout(context.Background(), b.Timeout)
 	defer cancel()
 	var tx *rpcTransaction
 	hash := ethcommon.HexToHash(txid)
@@ -687,10 +687,10 @@ func (b *EthereumRPC) EstimateFee(blocks int) (big.Int, error) {
 
 // EstimateSmartFee returns fee estimation
 func (b *EthereumRPC) EstimateSmartFee(blocks int, conservative bool) (big.Int, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), b.timeout)
+	ctx, cancel := context.WithTimeout(context.Background(), b.Timeout)
 	defer cancel()
 	var r big.Int
-	gp, err := b.client.SuggestGasPrice(ctx)
+	gp, err := b.Client.SuggestGasPrice(ctx)
 	if err == nil && b != nil {
 		r = *gp
 	}
@@ -708,7 +708,7 @@ func getStringFromMap(p string, params map[string]interface{}) (string, bool) {
 
 // EthereumTypeEstimateGas returns estimation of gas consumption for given transaction parameters
 func (b *EthereumRPC) EthereumTypeEstimateGas(params map[string]interface{}) (uint64, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), b.timeout)
+	ctx, cancel := context.WithTimeout(context.Background(), b.Timeout)
 	defer cancel()
 	msg := ethereum.CallMsg{}
 	s, ok := getStringFromMap("from", params)
@@ -736,12 +736,12 @@ func (b *EthereumRPC) EthereumTypeEstimateGas(params map[string]interface{}) (ui
 	if ok && len(s) > 0 {
 		msg.GasPrice, _ = hexutil.DecodeBig(s)
 	}
-	return b.client.EstimateGas(ctx, msg)
+	return b.Client.EstimateGas(ctx, msg)
 }
 
 // SendRawTransaction sends raw transaction
 func (b *EthereumRPC) SendRawTransaction(hex string) (string, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), b.timeout)
+	ctx, cancel := context.WithTimeout(context.Background(), b.Timeout)
 	defer cancel()
 	var raw json.RawMessage
 	err := b.rpc.CallContext(ctx, &raw, "eth_sendRawTransaction", hex)
@@ -762,16 +762,16 @@ func (b *EthereumRPC) SendRawTransaction(hex string) (string, error) {
 
 // EthereumTypeGetBalance returns current balance of an address
 func (b *EthereumRPC) EthereumTypeGetBalance(addrDesc bchain.AddressDescriptor) (*big.Int, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), b.timeout)
+	ctx, cancel := context.WithTimeout(context.Background(), b.Timeout)
 	defer cancel()
-	return b.client.BalanceAt(ctx, ethcommon.BytesToAddress(addrDesc), nil)
+	return b.Client.BalanceAt(ctx, ethcommon.BytesToAddress(addrDesc), nil)
 }
 
 // EthereumTypeGetNonce returns current balance of an address
 func (b *EthereumRPC) EthereumTypeGetNonce(addrDesc bchain.AddressDescriptor) (uint64, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), b.timeout)
+	ctx, cancel := context.WithTimeout(context.Background(), b.Timeout)
 	defer cancel()
-	return b.client.NonceAt(ctx, ethcommon.BytesToAddress(addrDesc), nil)
+	return b.Client.NonceAt(ctx, ethcommon.BytesToAddress(addrDesc), nil)
 }
 
 // GetChainParser returns ethereum BlockChainParser
