@@ -6,9 +6,9 @@
     "alias": "gnosis_chain"
   },
   "ports": {
-    "backend_rpc": 8045,
+    "backend_rpc": 9546,
     "backend_message_queue": 0,
-    "backend_http": 8545,
+    "backend_http": 9545,
     "blockbook_internal": 9099,
     "blockbook_public": 9199
   },
