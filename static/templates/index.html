@@ -29,7 +29,7 @@
                 </tr>
                 <tr>
                     <td>Last Block</td>
-                    <td class="data">{{if .InternalExplorer}}<a href="/block/{{$bb.BestHeight}}">{{$bb.BestHeight}}</a>{{else}}{{$bb.BestHeight}}{{end}}</td>
+                    <td class="data">{{if .InternalExplorer}}<a href="/block/{{$bb.BestHeight}}">{{formatNumber $bb.BestHeight 0 . " "}}</a>{{else}}{{formatNumber $bb.BestHeight 0 . " "}}{{end}}</td>
                 </tr>
                 <tr>
                     <td>Last Block Update</td>
@@ -45,11 +45,11 @@
                 </tr>
                 <tr>
                     <td>Transactions in Mempool</td>
-                    <td class="data">{{if .InternalExplorer}}<a href="/mempool">{{$bb.MempoolSize}}</a>{{else}}{{$bb.MempoolSize}}{{end}}</td>
+                    <td class="data">{{if .InternalExplorer}}<a href="/mempool">{{formatNumber $bb.MempoolSize 0 . " "}}</a>{{else}}{{formatNumber $bb.MempoolSize 0 . " "}}{{end}}</td>
                 </tr>
                 <tr>
                     <td>Size On Disk</td>
-                    <td class="data">{{$bb.DbSize}}</td>
+                    <td class="data">{{formatSize $bb.DbSize}}</td>
                 </tr>
             </tbody>
         </table>
@@ -82,7 +82,7 @@
                 </tr>
                 <tr>
                     <td>Last Block</td>
-                    <td class="data">{{$be.Blocks}}</td>
+                    <td class="data">{{formatNumber $be.Blocks 0 . " "}}</td>
                 </tr>
                 <tr>
                     <td>Difficulty</td>
@@ -97,7 +97,7 @@
                 {{- if $be.SizeOnDisk -}}
                 <tr>
                     <td>Size On Disk</td>
-                    <td class="data">{{$be.SizeOnDisk}}</td>
+                    <td class="data">{{formatSize $be.SizeOnDisk}}</td>
                 </tr>
                 {{- end -}}
                 {{- if $be.Consensus -}}
