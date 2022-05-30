@@ -110,7 +110,7 @@ func (b *EthereumRPC) ethCall(data, to string) (string, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), b.Timeout)
 	defer cancel()
 	var r string
-	err := b.rpc.CallContext(ctx, &r, "eth_call", map[string]interface{}{
+	err := b.Rpc.CallContext(ctx, &r, "eth_call", map[string]interface{}{
 		"data": data,
 		"to":   to,
 	}, "latest")

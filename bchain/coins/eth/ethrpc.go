@@ -48,7 +48,7 @@ type Configuration struct {
 type EthereumRPC struct {
 	*bchain.BaseChain
 	Client               *ethclient.Client
-	rpc                  *rpc.Client
+	Rpc                  *rpc.Client
 	Timeout              time.Duration
 	Parser               *EthereumParser
 	Mempool              *bchain.MempoolEthereumType
@@ -84,7 +84,7 @@ func NewEthereumRPC(config json.RawMessage, pushHandler func(bchain.Notification
 	s := &EthereumRPC{
 		BaseChain:   &bchain.BaseChain{},
 		Client:      ec,
-		rpc:         rc,
+		Rpc:         rc,
 		ChainConfig: &c,
 	}
 
@@ -216,7 +216,7 @@ func (b *EthereumRPC) subscribeEvents() error {
 		b.newBlockSubscription = nil
 		ctx, cancel := context.WithTimeout(context.Background(), b.Timeout)
 		defer cancel()
-		sub, err := b.rpc.EthSubscribe(ctx, b.chanNewBlock, "newHeads")
+		sub, err := b.Rpc.EthSubscribe(ctx, b.chanNewBlock, "newHeads")
 		if err != nil {
 			return nil, errors.Annotatef(err, "EthSubscribe newHeads")
 		}
@@ -232,7 +232,7 @@ func (b *EthereumRPC) subscribeEvents() error {
 		b.newTxSubscription = nil
 		ctx, cancel := context.WithTimeout(context.Background(), b.Timeout)
 		defer cancel()
-		sub, err := b.rpc.EthSubscribe(ctx, b.chanNewTx, "newPendingTransactions")
+		sub, err := b.Rpc.EthSubscribe(ctx, b.chanNewTx, "newPendingTransactions")
 		if err != nil {
 			return nil, errors.Annotatef(err, "EthSubscribe newPendingTransactions")
 		}
@@ -293,8 +293,8 @@ func (b *EthereumRPC) closeRPC() {
 	if b.newTxSubscription != nil {
 		b.newTxSubscription.Unsubscribe()
 	}
-	if b.rpc != nil {
-		b.rpc.Close()
+	if b.Rpc != nil {
+		b.Rpc.Close()
 	}
 }
 
@@ -305,7 +305,7 @@ func (b *EthereumRPC) reconnectRPC() error {
 	if err != nil {
 		return err
 	}
-	b.rpc = rc
+	b.Rpc = rc
 	b.Client = ec
 	return b.subscribeEvents()
 }
@@ -341,7 +341,7 @@ func (b *EthereumRPC) GetChainInfo() (*bchain.ChainInfo, error) {
 		return nil, err
 	}
 	var ver string
-	if err := b.rpc.CallContext(ctx, &ver, "web3_clientVersion"); err != nil {
+	if err := b.Rpc.CallContext(ctx, &ver, "web3_clientVersion"); err != nil {
 		return nil, err
 	}
 	rv := &bchain.ChainInfo{
@@ -476,12 +476,12 @@ func (b *EthereumRPC) getBlockRaw(hash string, height uint32, fullTxs bool) (jso
 	var err error
 	if hash != "" {
 		if hash == "pending" {
-			err = b.rpc.CallContext(ctx, &raw, "eth_getBlockByNumber", hash, fullTxs)
+			err = b.Rpc.CallContext(ctx, &raw, "eth_getBlockByNumber", hash, fullTxs)
 		} else {
-			err = b.rpc.CallContext(ctx, &raw, "eth_getBlockByHash", ethcommon.HexToHash(hash), fullTxs)
+			err = b.Rpc.CallContext(ctx, &raw, "eth_getBlockByHash", ethcommon.HexToHash(hash), fullTxs)
 		}
 	} else {
-		err = b.rpc.CallContext(ctx, &raw, "eth_getBlockByNumber", fmt.Sprintf("%#x", height), fullTxs)
+		err = b.Rpc.CallContext(ctx, &raw, "eth_getBlockByNumber", fmt.Sprintf("%#x", height), fullTxs)
 	}
 	if err != nil {
 		return nil, errors.Annotatef(err, "hash %v, height %v", hash, height)
@@ -495,7 +495,7 @@ func (b *EthereumRPC) getERC20EventsForBlock(blockNumber string) (map[string][]*
 	ctx, cancel := context.WithTimeout(context.Background(), b.Timeout)
 	defer cancel()
 	var logs []rpcLogWithTxHash
-	err := b.rpc.CallContext(ctx, &logs, "eth_getLogs", map[string]interface{}{
+	err := b.Rpc.CallContext(ctx, &logs, "eth_getLogs", map[string]interface{}{
 		"fromBlock": blockNumber,
 		"toBlock":   blockNumber,
 		"topics":    []string{erc20TransferEventSignature},
@@ -591,7 +591,7 @@ func (b *EthereumRPC) GetTransaction(txid string) (*bchain.Tx, error) {
 	defer cancel()
 	var tx *rpcTransaction
 	hash := ethcommon.HexToHash(txid)
-	err := b.rpc.CallContext(ctx, &tx, "eth_getTransactionByHash", hash)
+	err := b.Rpc.CallContext(ctx, &tx, "eth_getTransactionByHash", hash)
 	if err != nil {
 		return nil, err
 	} else if tx == nil {
@@ -624,7 +624,7 @@ func (b *EthereumRPC) GetTransaction(txid string) (*bchain.Tx, error) {
 			return nil, errors.Annotatef(err, "txid %v", txid)
 		}
 		var receipt rpcReceipt
-		err = b.rpc.CallContext(ctx, &receipt, "eth_getTransactionReceipt", hash)
+		err = b.Rpc.CallContext(ctx, &receipt, "eth_getTransactionReceipt", hash)
 		if err != nil {
 			return nil, errors.Annotatef(err, "txid %v", txid)
 		}
@@ -744,7 +744,7 @@ func (b *EthereumRPC) SendRawTransaction(hex string) (string, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), b.Timeout)
 	defer cancel()
 	var raw json.RawMessage
-	err := b.rpc.CallContext(ctx, &raw, "eth_sendRawTransaction", hex)
+	err := b.Rpc.CallContext(ctx, &raw, "eth_sendRawTransaction", hex)
 	if err != nil {
 		return "", err
 	} else if len(raw) == 0 {

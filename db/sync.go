@@ -332,10 +332,10 @@ func (w *SyncWorker) ConnectBlocksParallel(lower, higher uint32) error {
 				if err != nil {
 					// signal came while looping in the error loop
 					if hchClosed.Load() == true {
-						glog.Error("getBlockWorker ", i, " connect block ", hh.height, " error ", err, ". Exiting...")
+						glog.Error("getBlockWorker ", i, " connect block ", hh.height, "(", hh.hash, ") error ", err, ". Exiting...")
 						return
 					}
-					glog.Error("getBlockWorker ", i, " connect block ", hh.height, " error ", err, ". Retrying...")
+					glog.Error("getBlockWorker ", i, " connect block ", hh.hash, " error ", err, ". Retrying...")
 					w.metrics.IndexResyncErrors.With(common.Labels{"error": "failure"}).Inc()
 					time.Sleep(time.Millisecond * 500)
 				} else {
