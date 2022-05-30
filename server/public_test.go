@@ -314,7 +314,7 @@ func httpTestsBitcoinType(t *testing.T, ts *httptest.Server) {
 				`<a class="navbar-brand" href="/">Fake Coin Explorer</a>`,
 				`<h1>Application status</h1>`,
 				`<h3 class="bg-warning text-white" style="padding: 20px;">Synchronization with backend is disabled, the state of index is not up to date.</h3>`,
-				`<a href="/block/225494">225494</a>`,
+				`<a href="/block/225494">225 494</a>`,
 				`<td class="data">/Fakecoin:0.0.1/</td>`,
 				`</html>`,
 			},

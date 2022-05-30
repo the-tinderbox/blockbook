@@ -28,8 +28,12 @@
                     <td class="data {{if not $bb.InSync}}text-danger{{else}}text-success{{end}}">{{$bb.InSync}}</td>
                 </tr>
                 <tr>
+                    <td>Sync Progress</td>
+                    <td class="data">{{syncProgress $bb.BestHeight $be.Blocks}}%</td>
+                </tr>
+                <tr>
                     <td>Last Block</td>
-                    <td class="data">{{if .InternalExplorer}}<a href="/block/{{$bb.BestHeight}}">{{formatNumber $bb.BestHeight 0 . " "}}</a>{{else}}{{formatNumber $bb.BestHeight 0 . " "}}{{end}}</td>
+                    <td class="data">{{if .InternalExplorer}}<a href="/block/{{$bb.BestHeight}}">{{formatUint32 $bb.BestHeight 0 "." " "}}</a>{{else}}{{formatUint32 $bb.BestHeight 0 "." " "}}{{end}}</td>
                 </tr>
                 <tr>
                     <td>Last Block Update</td>
@@ -45,7 +49,7 @@
                 </tr>
                 <tr>
                     <td>Transactions in Mempool</td>
-                    <td class="data">{{if .InternalExplorer}}<a href="/mempool">{{formatNumber $bb.MempoolSize 0 . " "}}</a>{{else}}{{formatNumber $bb.MempoolSize 0 . " "}}{{end}}</td>
+                    <td class="data">{{if .InternalExplorer}}<a href="/mempool">{{formatInt $bb.MempoolSize 0 "." " "}}</a>{{else}}{{formatInt $bb.MempoolSize 0 "." " "}}{{end}}</td>
                 </tr>
                 <tr>
                     <td>Size On Disk</td>
@@ -82,7 +86,7 @@
                 </tr>
                 <tr>
                     <td>Last Block</td>
-                    <td class="data">{{formatNumber $be.Blocks 0 . " "}}</td>
+                    <td class="data">{{formatInt $be.Blocks 0 "." " "}}</td>
                 </tr>
                 <tr>
                     <td>Difficulty</td>

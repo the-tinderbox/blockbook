@@ -452,6 +452,9 @@ func (s *PublicServer) parseTemplates() []*template.Template {
 		"formatTime":               formatTime,
 		"formatSize":               formatSize,
 		"formatNumber":             formatNumber,
+		"formatUint32":             formatUint32,
+		"formatInt":                formatInt,
+		"syncProgress":             syncProgress,
 		"formatUnixTime":           formatUnixTime,
 		"formatAmount":             s.formatAmount,
 		"formatAmountWithDecimals": formatAmountWithDecimals,
@@ -517,12 +520,28 @@ func (s *PublicServer) parseTemplates() []*template.Template {
 	return t
 }
 
+func syncProgress(bestHeight uint32, blocks int) string {
+	if blocks == 0 {
+		return "0"
+	} else {
+		return formatNumber(float64(bestHeight)/(float64(blocks)/100), 2, ".", " ")
+	}
+}
+
 func formatUnixTime(ut int64) string {
 	return formatTime(time.Unix(ut, 0))
 }
 
 func formatTime(t time.Time) string {
 	return t.Format(time.RFC1123)
+}
+
+func formatInt(number int, decimals uint, decPoint, thousandsSep string) string {
+	return formatNumber(float64(number), decimals, decPoint, thousandsSep)
+}
+
+func formatUint32(number uint32, decimals uint, decPoint, thousandsSep string) string {
+	return formatNumber(float64(number), decimals, decPoint, thousandsSep)
 }
 
 func formatNumber(number float64, decimals uint, decPoint, thousandsSep string) string {
