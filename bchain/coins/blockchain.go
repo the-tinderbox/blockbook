@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/trezor/blockbook/bchain/coins/gnosis"
 	"github.com/trezor/blockbook/bchain/coins/polygon"
 	"io/ioutil"
 	"math/big"
@@ -73,6 +74,7 @@ func init() {
 	BlockChainFactories["Ethereum Testnet Ropsten"] = eth.NewEthereumRPC
 	BlockChainFactories["Ethereum Testnet Goerli"] = eth.NewEthereumRPC
 	BlockChainFactories["Polygon"] = polygon.NewMaticRpc
+	BlockChainFactories["Gnosis"] = gnosis.NewGnosisRpc
 	BlockChainFactories["Bcash"] = bch.NewBCashRPC
 	BlockChainFactories["Bcash Testnet"] = bch.NewBCashRPC
 	BlockChainFactories["Bgold"] = btg.NewBGoldRPC

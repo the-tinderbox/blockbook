@@ -1,0 +1,43 @@
+{
+  "coin": {
+    "name": "Gnosis Chain",
+    "shortcut": "USDT",
+    "label": "Gnosis Chain",
+    "alias": "gnosis_chain"
+  },
+  "ports": {
+    "backend_rpc": 8045,
+    "backend_message_queue": 0,
+    "backend_http": 8545,
+    "blockbook_internal": 9099,
+    "blockbook_public": 9199
+  },
+  "ipc": {
+    "rpc_url_template": "ws://127.0.0.1:{{.Ports.BackendRPC}}",
+    "rpc_timeout": 25
+  },
+  "blockbook": {
+    "package_name": "blockbook-gnosis-chain",
+    "system_user": "blockbook-gnosis-chain",
+    "internal_binding_template": ":{{.Ports.BlockbookInternal}}",
+    "public_binding_template": ":{{.Ports.BlockbookPublic}}",
+    "explorer_url": "",
+    "additional_params": "",
+    "block_chain": {
+      "parse": true,
+      "mempool_workers": 8,
+      "mempool_sub_workers": 2,
+      "block_addresses_to_keep": 10000,
+      "additional_params": {
+        "mempoolTxTimeoutHours": 48,
+        "queryBackendOnMempoolResync": true,
+        "fiat_rates": "coingecko",
+        "fiat_rates_params": "{\"url\": \"https://api.coingecko.com/api/v3\", \"coin\": \"usdt\", \"periodSeconds\": 60}"
+      }
+    }
+  },
+  "meta": {
+    "package_maintainer": "IT",
+    "package_maintainer_email": "it@satoshilabs.com"
+  }
+}
