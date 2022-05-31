@@ -3,6 +3,8 @@ package fantom
 import (
 	"context"
 	"encoding/json"
+	"fmt"
+	ethcommon "github.com/ethereum/go-ethereum/common"
 	"github.com/golang/glog"
 	"github.com/juju/errors"
 	"github.com/trezor/blockbook/bchain"
@@ -70,4 +72,48 @@ func (b *FantomRPC) Initialize() error {
 	glog.Info("rpc: block chain ", b.Network)
 
 	return nil
+}
+
+type BlockHash struct {
+	Hash string `json:"hash"`
+}
+
+// GetBlockHash returns hash of block in best-block-chain at given height
+func (b *FantomRPC) GetBlockHash(height uint32) (string, error) {
+	var blockHash BlockHash
+	raw, err := b.getBlockRaw("", height, true)
+
+	if err != nil {
+		return "", errors.Annotatef(err, "blockNumber %v", height)
+	}
+
+	err = json.Unmarshal(raw, &blockHash)
+
+	if err != nil {
+		return "", errors.Annotatef(err, "blockNumber %v", height)
+	}
+
+	return blockHash.Hash, nil
+}
+
+func (b *FantomRPC) getBlockRaw(hash string, height uint32, fullTxs bool) (json.RawMessage, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), b.Timeout)
+	defer cancel()
+	var raw json.RawMessage
+	var err error
+	if hash != "" {
+		if hash == "pending" {
+			err = b.Rpc.CallContext(ctx, &raw, "eth_getBlockByNumber", hash, fullTxs)
+		} else {
+			err = b.Rpc.CallContext(ctx, &raw, "eth_getBlockByHash", ethcommon.HexToHash(hash), fullTxs)
+		}
+	} else {
+		err = b.Rpc.CallContext(ctx, &raw, "eth_getBlockByNumber", fmt.Sprintf("%#x", height), fullTxs)
+	}
+	if err != nil {
+		return nil, errors.Annotatef(err, "hash %v, height %v", hash, height)
+	} else if len(raw) == 0 {
+		return nil, bchain.ErrBlockNotFound
+	}
+	return raw, nil
 }
