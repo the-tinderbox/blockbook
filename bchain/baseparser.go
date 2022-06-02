@@ -304,3 +304,16 @@ func (p *BaseParser) DeriveAddressDescriptorsFromTo(descriptor *XpubDescriptor, 
 func (p *BaseParser) EthereumTypeGetErc20FromTx(tx *Tx) ([]Erc20Transfer, error) {
 	return nil, errors.New("Not supported")
 }
+
+func (p *BaseParser) TronTypeGetTrc10FromTx(tx *Tx) ([]Trc10Transfer, error) {
+	return nil, errors.New("Not supported")
+}
+
+func (p *BaseParser) TronTypeGetTrc20FromTx(tx *Tx) ([]Trc20Transfer, error) {
+	return nil, errors.New("Not supported")
+}
+
+// TronTypeGetInternalFromTx is not supported
+func (p *BaseParser) TronTypeGetInternalFromTx(tx *Tx) ([]InternalTransfer, error) {
+	return nil, errors.New("Not supported")
+}

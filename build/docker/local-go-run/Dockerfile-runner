@@ -1,0 +1,13 @@
+# initialize from the image defined by BASE_IMAGE
+FROM blockbook-local-base
+
+COPY . $GOPATH/src/github.com/the-tinderbox/blockbook
+COPY ./run.sh /run.sh
+
+
+# pre-load depencencies
+RUN chmod +x /run.sh && \
+    cd $GOPATH/src/github.com/the-tinderbox/blockbook && \
+    go mod download
+
+CMD /run.sh

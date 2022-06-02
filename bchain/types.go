@@ -19,6 +19,8 @@ const (
 	ChainBitcoinType = ChainType(iota)
 	// ChainEthereumType is blockchain derived from ethereum
 	ChainEthereumType
+	// ChainTronType is blockchain derived from tron
+	ChainTronType
 )
 
 // errors with specific meaning returned by blockchain rpc
@@ -200,6 +202,46 @@ func AddressDescriptorFromString(s string) (AddressDescriptor, error) {
 	return nil, errors.New("invalid address descriptor")
 }
 
+// TronType specific
+
+type InternalTransfer struct {
+	From  string
+	To    string
+	Value big.Int
+}
+
+// Trc20Contract contains info about TRC20 contract
+type Trc20Contract struct {
+	Contract string `json:"contract"`
+	Name     string `json:"name"`
+	Symbol   string `json:"symbol"`
+	Decimals int    `json:"decimals"`
+}
+
+// Trc20Transfer contains a single TRC20 token transfer
+type Trc20Transfer struct {
+	Contract string
+	From     string
+	To       string
+	Tokens   big.Int
+}
+
+// Trc10Contract contains info about TRC10 contract
+type Trc10Contract struct {
+	Contract string `json:"contract"`
+	Name     string `json:"name"`
+	Symbol   string `json:"symbol"`
+	Decimals int    `json:"decimals"`
+}
+
+// Trc10Transfer contains a single TRC10 token transfer
+type Trc10Transfer struct {
+	Contract string
+	From     string
+	To       string
+	Tokens   big.Int
+}
+
 // EthereumType specific
 
 // Erc20Contract contains info about ERC20 contract
@@ -302,6 +344,11 @@ type BlockChain interface {
 	EthereumTypeEstimateGas(params map[string]interface{}) (uint64, error)
 	EthereumTypeGetErc20ContractInfo(contractDesc AddressDescriptor) (*Erc20Contract, error)
 	EthereumTypeGetErc20ContractBalance(addrDesc, contractDesc AddressDescriptor) (*big.Int, error)
+	// TronType specific
+	TronTypeGetTrc10ContractInfo(contractDesc AddressDescriptor) (*Trc10Contract, error)
+	TronTypeGetTrc10ContractBalance(addrDesc, contractDesc AddressDescriptor) (*big.Int, error)
+	TronTypeGetTrc20ContractInfo(contractDesc AddressDescriptor) (*Trc20Contract, error)
+	TronTypeGetTrc20ContractBalance(addrDesc, contractDesc AddressDescriptor) (*big.Int, error)
 }
 
 // BlockChainParser defines common interface to parsing and conversions of block chain data
@@ -346,6 +393,11 @@ type BlockChainParser interface {
 	DeriveAddressDescriptorsFromTo(descriptor *XpubDescriptor, change uint32, fromIndex uint32, toIndex uint32) ([]AddressDescriptor, error)
 	// EthereumType specific
 	EthereumTypeGetErc20FromTx(tx *Tx) ([]Erc20Transfer, error)
+
+	// TronType specific
+	TronTypeGetInternalFromTx(tx *Tx) ([]InternalTransfer, error)
+	TronTypeGetTrc10FromTx(tx *Tx) ([]Trc10Transfer, error)
+	TronTypeGetTrc20FromTx(tx *Tx) ([]Trc20Transfer, error)
 }
 
 // Mempool defines common interface to mempool

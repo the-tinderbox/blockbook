@@ -3,6 +3,7 @@ package api
 import (
 	"encoding/json"
 	"errors"
+	"github.com/trezor/blockbook/bchain/coins/trx"
 	"math/big"
 	"sort"
 	"time"
@@ -141,6 +142,12 @@ type TokenType string
 // ERC20TokenType is Ethereum ERC20 token
 const ERC20TokenType TokenType = "ERC20"
 
+// TRC10TokenType is Tron TRC10 token
+const TRC10TokenType TokenType = "TRC10"
+
+// TRC20TokenType is Tron TRC20 token
+const TRC20TokenType TokenType = "TRC20"
+
 // XPUBAddressTokenType is address derived from xpub
 const XPUBAddressTokenType TokenType = "XPUBAddress"
 
@@ -171,6 +178,13 @@ type TokenTransfer struct {
 	Value    *Amount   `json:"value"`
 }
 
+// InternalTransfer cointains info about internal transactions
+type InternalTransfer struct {
+	From  string  `json:"from"`
+	To    string  `json:"to"`
+	Value *Amount `json:"value"`
+}
+
 // EthereumSpecific contains ethereum specific transaction data
 type EthereumSpecific struct {
 	Status   eth.TxStatus `json:"status"` // 1 OK, 0 Fail, -1 pending
@@ -179,6 +193,15 @@ type EthereumSpecific struct {
 	GasUsed  *big.Int     `json:"gasUsed"`
 	GasPrice *Amount      `json:"gasPrice"`
 	Data     string       `json:"data,omitempty"`
+}
+
+type TronSpecific struct {
+	Data              string `json:"data,omitempty"`
+	Type              string `json:"type"`
+	InternalTransfers []InternalTransfer
+	TRC10Transfers    []TokenTransfer
+	TRC20Transfers    []TokenTransfer
+	Status            trx.TxStatus
 }
 
 // Tx holds information about a transaction
@@ -201,6 +224,7 @@ type Tx struct {
 	CoinSpecificData json.RawMessage   `json:"coinSpecificData,omitempty"`
 	TokenTransfers   []TokenTransfer   `json:"tokenTransfers,omitempty"`
 	EthereumSpecific *EthereumSpecific `json:"ethereumSpecific,omitempty"`
+	TronSpecific     *TronSpecific     `json:"tronSpecific,omitempty"`
 }
 
 // FeeStats contains detailed block fee statistics

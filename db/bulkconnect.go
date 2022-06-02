@@ -334,7 +334,7 @@ func (b *BulkConnect) ConnectBlock(block *bchain.Block, storeBlockTxs bool) erro
 	b.height = block.Height
 	if b.chainType == bchain.ChainBitcoinType {
 		return b.connectBlockBitcoinType(block, storeBlockTxs)
-	} else if b.chainType == bchain.ChainEthereumType {
+	} else if b.chainType == bchain.ChainEthereumType || b.chainType == bchain.ChainTronType {
 		return b.connectBlockEthereumType(block, storeBlockTxs)
 	}
 	// for default is to connect blocks in non bulk mode
@@ -352,7 +352,7 @@ func (b *BulkConnect) Close() error {
 		go b.parallelStoreTxAddresses(storeTxAddressesChan, true)
 		storeBalancesChan = make(chan error)
 		go b.parallelStoreBalances(storeBalancesChan, true)
-	} else if b.chainType == bchain.ChainEthereumType {
+	} else if b.chainType == bchain.ChainEthereumType || b.chainType == bchain.ChainTronType {
 		storeAddressContractsChan = make(chan error)
 		go b.parallelStoreAddressContracts(storeAddressContractsChan, true)
 	}

@@ -111,6 +111,7 @@ var (
 func init() {
 	glog.MaxSize = 1024 * 1024 * 8
 	glog.CopyStandardLogTo("INFO")
+	log.Println("Started blockbook!")
 }
 
 func main() {

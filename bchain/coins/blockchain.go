@@ -7,6 +7,7 @@ import (
 	"github.com/trezor/blockbook/bchain/coins/fantom"
 	"github.com/trezor/blockbook/bchain/coins/gnosis"
 	"github.com/trezor/blockbook/bchain/coins/polygon"
+	"github.com/trezor/blockbook/bchain/coins/trx"
 	"io/ioutil"
 	"math/big"
 	"reflect"
@@ -70,6 +71,7 @@ func init() {
 	BlockChainFactories["Regtest"] = btc.NewBitcoinRPC
 	BlockChainFactories["Zcash"] = zec.NewZCashRPC
 	BlockChainFactories["Zcash Testnet"] = zec.NewZCashRPC
+	BlockChainFactories["Tron"] = trx.NewTronRPC
 	BlockChainFactories["Ethereum"] = eth.NewEthereumRPC
 	BlockChainFactories["Ethereum Classic"] = eth.NewEthereumRPC
 	BlockChainFactories["Ethereum Testnet Ropsten"] = eth.NewEthereumRPC
@@ -334,6 +336,26 @@ func (c *blockChainWithMetrics) EthereumTypeGetErc20ContractInfo(contractDesc bc
 func (c *blockChainWithMetrics) EthereumTypeGetErc20ContractBalance(addrDesc, contractDesc bchain.AddressDescriptor) (v *big.Int, err error) {
 	defer func(s time.Time) { c.observeRPCLatency("EthereumTypeGetErc20ContractInfo", s, err) }(time.Now())
 	return c.b.EthereumTypeGetErc20ContractBalance(addrDesc, contractDesc)
+}
+
+func (c *blockChainWithMetrics) TronTypeGetTrc10ContractInfo(contractDesc bchain.AddressDescriptor) (v *bchain.Trc10Contract, err error) {
+	defer func(s time.Time) { c.observeRPCLatency("TronTypeGetTrc10ContractInfo", s, err) }(time.Now())
+	return c.b.TronTypeGetTrc10ContractInfo(contractDesc)
+}
+
+func (c *blockChainWithMetrics) TronTypeGetTrc10ContractBalance(addrDesc, contractDesc bchain.AddressDescriptor) (v *big.Int, err error) {
+	defer func(s time.Time) { c.observeRPCLatency("TronTypeGetTrc10ContractInfo", s, err) }(time.Now())
+	return c.b.TronTypeGetTrc10ContractBalance(addrDesc, contractDesc)
+}
+
+func (c *blockChainWithMetrics) TronTypeGetTrc20ContractInfo(contractDesc bchain.AddressDescriptor) (v *bchain.Trc20Contract, err error) {
+	defer func(s time.Time) { c.observeRPCLatency("TronTypeGetTrc20ContractInfo", s, err) }(time.Now())
+	return c.b.TronTypeGetTrc20ContractInfo(contractDesc)
+}
+
+func (c *blockChainWithMetrics) TronTypeGetTrc20ContractBalance(addrDesc, contractDesc bchain.AddressDescriptor) (v *big.Int, err error) {
+	defer func(s time.Time) { c.observeRPCLatency("TronTypeGetTrc20ContractInfo", s, err) }(time.Now())
+	return c.b.TronTypeGetTrc20ContractBalance(addrDesc, contractDesc)
 }
 
 type mempoolWithMetrics struct {

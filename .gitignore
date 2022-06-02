@@ -1,13 +1,14 @@
 vendor/
 data*/
 profile/
+bin/
 blockbook
 notes.txt
 debug*
 .vscode
 docker/blockbook
 build/pkg-defs
-build/blockbook
+bin/blockbook
 build/blockchaincfg.json
 build/ldb
 build/sst_dump

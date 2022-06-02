@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"github.com/trezor/blockbook/bchain/coins/trx"
 	"math"
 	"math/big"
 	"os"
@@ -133,6 +134,7 @@ func (w *Worker) GetTransactionFromBchainTx(bchainTx *bchain.Tx, height int, spe
 	var ta *db.TxAddresses
 	var tokens []TokenTransfer
 	var ethSpecific *EthereumSpecific
+	var tronSpecific *TronSpecific
 	var blockhash string
 	if bchainTx.Confirmations > 0 {
 		if w.chainType == bchain.ChainBitcoinType {
@@ -214,7 +216,7 @@ func (w *Worker) GetTransactionFromBchainTx(bchainTx *bchain.Tx, height int, spe
 					valInSat.Add(&valInSat, (*big.Int)(vin.ValueSat))
 				}
 			}
-		} else if w.chainType == bchain.ChainEthereumType {
+		} else if w.chainType == bchain.ChainEthereumType || w.chainType == bchain.ChainTronType {
 			if len(bchainVin.Addresses) > 0 {
 				vin.AddrDesc, err = w.chainParser.GetAddrDescFromAddress(bchainVin.Addresses[0])
 				if err != nil {
@@ -276,6 +278,38 @@ func (w *Worker) GetTransactionFromBchainTx(bchainTx *bchain.Tx, height int, spe
 			Status:   ethTxData.Status,
 			Data:     ethTxData.Data,
 		}
+	} else if w.chainType == bchain.ChainTronType {
+		its, err := w.chainParser.TronTypeGetInternalFromTx(bchainTx)
+		if err != nil {
+			glog.Errorf("GetTronInternalFromTx error %v, %v", err, bchainTx)
+		}
+		itt := w.getInternalFromTronTx(its)
+
+		trc10ts, err := w.chainParser.TronTypeGetTrc10FromTx(bchainTx)
+		if err != nil {
+			glog.Errorf("GetTrc10FromTx error %v, %v", err, bchainTx)
+		}
+		trc10t := w.getTokensFromTrc10(trc10ts)
+
+		/*trc20ts, err := w.chainParser.TronTypeGetTrc20FromTx(bchainTx)
+		if err != nil {
+			glog.Errorf("GetTrc20FromTx error %v, %v", err, bchainTx)
+		}
+		trc20tokens := w.getTokensFromTrc20(trc20ts)*/
+
+		tronTxData := trx.GetTronTxData(bchainTx)
+		if len(bchainTx.Vout) > 0 {
+			valOutSat = bchainTx.Vout[0].ValueSat
+		}
+		tronSpecific = &TronSpecific{
+			Type:              tronTxData.Type,
+			Data:              tronTxData.Data,
+			TRC10Transfers:    trc10t,
+			InternalTransfers: itt,
+			//TRC20Transfers: trc20ts,
+			Status: tronTxData.Status,
+		}
+		feesSat.Set(tronTxData.Fee)
 	}
 	// for now do not return size, we would have to compute vsize of segwit transactions
 	// size:=len(bchainTx.Hex) / 2
@@ -309,6 +343,7 @@ func (w *Worker) GetTransactionFromBchainTx(bchainTx *bchain.Tx, height int, spe
 		CoinSpecificData: sj,
 		TokenTransfers:   tokens,
 		EthereumSpecific: ethSpecific,
+		TronSpecific:     tronSpecific,
 	}
 	return r, nil
 }
@@ -346,7 +381,7 @@ func (w *Worker) GetTransactionFromMempoolTx(mempoolTx *bchain.MempoolTx) (*Tx, 
 					valInSat.Add(&valInSat, (*big.Int)(vin.ValueSat))
 				}
 			}
-		} else if w.chainType == bchain.ChainEthereumType {
+		} else if w.chainType == bchain.ChainEthereumType || w.chainType == bchain.ChainTronType {
 			if len(bchainVin.Addresses) > 0 {
 				vin.AddrDesc, err = w.chainParser.GetAddrDescFromAddress(bchainVin.Addresses[0])
 				if err != nil {
@@ -377,7 +412,7 @@ func (w *Worker) GetTransactionFromMempoolTx(mempoolTx *bchain.MempoolTx) (*Tx, 
 			feesSat.SetUint64(0)
 		}
 		pValInSat = &valInSat
-	} else if w.chainType == bchain.ChainEthereumType {
+	} else if w.chainType == bchain.ChainEthereumType || w.chainType == bchain.ChainTronType {
 		if len(mempoolTx.Vout) > 0 {
 			valOutSat = mempoolTx.Vout[0].ValueSat
 		}
@@ -435,6 +470,56 @@ func (w *Worker) getTokensFromErc20(erc20 []bchain.Erc20Transfer) []TokenTransfe
 			Value:    (*Amount)(&e.Tokens),
 			Name:     erc20c.Name,
 			Symbol:   erc20c.Symbol,
+		}
+	}
+	return tokens
+}
+
+func (w *Worker) getInternalFromTronTx(it []bchain.InternalTransfer) []InternalTransfer {
+	transfers := make([]InternalTransfer, len(it))
+
+	for i := range it {
+		t := &it[i]
+
+		transfers[i] = InternalTransfer{
+			From:  t.From,
+			To:    t.To,
+			Value: (*Amount)(&t.Value),
+		}
+	}
+
+	return transfers
+}
+
+func (w *Worker) getTokensFromTrc10(trc10 []bchain.Trc10Transfer) []TokenTransfer {
+	tokens := make([]TokenTransfer, len(trc10))
+
+	for i := range trc10 {
+		e := &trc10[i]
+
+		cd, err := w.chainParser.GetAddrDescFromAddress(e.Contract)
+		if err != nil {
+			glog.Errorf("GetAddrDescFromAddress error %v, contract %v", err, e.Contract)
+			continue
+		}
+		trc10c, err := w.chain.TronTypeGetTrc10ContractInfo(cd)
+		if err != nil {
+			glog.Errorf("GetTrc10ContractInfo error %v, contract %v", err, e.Contract)
+		}
+
+		if trc10c == nil {
+			trc10c = &bchain.Trc10Contract{Name: e.Contract}
+		}
+
+		tokens[i] = TokenTransfer{
+			Type:     TRC10TokenType,
+			Token:    e.Contract,
+			From:     e.From,
+			To:       e.To,
+			Decimals: trc10c.Decimals,
+			Value:    (*Amount)(&e.Tokens),
+			Name:     trc10c.Name,
+			Symbol:   trc10c.Symbol,
 		}
 	}
 	return tokens
@@ -870,7 +955,7 @@ func (w *Worker) GetAddress(address string, page int, txsOnPage int, option Acco
 	if err != nil {
 		return nil, err
 	}
-	if w.chainType == bchain.ChainEthereumType {
+	if w.chainType == bchain.ChainEthereumType || w.chainType == bchain.ChainTronType {
 		var n uint64
 		ba, tokens, erc20c, n, nonTokenTxs, totalResults, err = w.getEthereumTypeAddressBalances(addrDesc, option, filter)
 		if err != nil {
@@ -914,7 +999,7 @@ func (w *Worker) GetAddress(address string, page int, txsOnPage int, option Acco
 					unconfirmedTxs++
 					uBalSat.Add(&uBalSat, tx.getAddrVoutValue(addrDesc))
 					// ethereum has a different logic - value not in input and add maximum possible fees
-					if w.chainType == bchain.ChainEthereumType {
+					if w.chainType == bchain.ChainEthereumType || w.chainType == bchain.ChainTronType {
 						uBalSat.Sub(&uBalSat, tx.getAddrEthereumTypeMempoolInputValue(addrDesc))
 					} else {
 						uBalSat.Sub(&uBalSat, tx.getAddrVinValue(addrDesc))
@@ -1020,7 +1105,7 @@ func (w *Worker) balanceHistoryForTxid(addrDesc bchain.AddressDescriptor, txid s
 			return nil, nil
 		}
 		height = ta.Height
-	} else if w.chainType == bchain.ChainEthereumType {
+	} else if w.chainType == bchain.ChainEthereumType || w.chainType == bchain.ChainTronType {
 		var h int
 		bchainTx, h, err = w.txCache.GetTransaction(txid)
 		if err != nil {
@@ -1074,7 +1159,7 @@ func (w *Worker) balanceHistoryForTxid(addrDesc bchain.AddressDescriptor, txid s
 				}
 			}
 		}
-	} else if w.chainType == bchain.ChainEthereumType {
+	} else if w.chainType == bchain.ChainEthereumType || w.chainType == bchain.ChainTronType {
 		var value big.Int
 		ethTxData := eth.GetEthereumTxData(bchainTx)
 		// add received amount only for OK or unknown status (old) transactions

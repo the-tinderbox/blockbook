@@ -151,7 +151,7 @@ func NewRocksDB(path string, cacheSize, maxOpenFiles int, parser bchain.BlockCha
 	chainType := parser.GetChainType()
 	if chainType == bchain.ChainBitcoinType {
 		cfNames = append(cfNames, cfNamesBitcoinType...)
-	} else if chainType == bchain.ChainEthereumType {
+	} else if chainType == bchain.ChainEthereumType || chainType == bchain.ChainTronType {
 		cfNames = append(cfNames, cfNamesEthereumType...)
 	} else {
 		return nil, errors.New("Unknown chain type")
@@ -465,7 +465,7 @@ func (d *RocksDB) ConnectBlock(block *bchain.Block) error {
 		if err := d.storeAndCleanupBlockTxs(wb, block); err != nil {
 			return err
 		}
-	} else if chainType == bchain.ChainEthereumType {
+	} else if chainType == bchain.ChainEthereumType || chainType == bchain.ChainTronType {
 		addressContracts := make(map[string]*AddrContracts)
 		blockTxs, err := d.processAddressesEthereumType(block, addresses, addressContracts)
 		if err != nil {
