@@ -378,6 +378,21 @@ func (b *TronRPC) TronTypeGetTrc10ContractInfo(contractDesc bchain.AddressDescri
 		Contract: ai.ID,
 		Name:     ai.Name,
 		Symbol:   ai.Abr,
-		Decimals: 0,
+		Decimals: 6,
+	}, nil
+}
+
+func (b *TronRPC) TronTypeGetTrc20ContractInfo(contractDesc bchain.AddressDescriptor) (*bchain.Trc20Contract, error) {
+	ai, err := b.rpc.GetContractInfo(string(contractDesc))
+
+	if err != nil {
+		return nil, err
+	}
+
+	return &bchain.Trc20Contract{
+		Contract: ai.ContractAddress,
+		Name:     ai.Name,
+		Symbol:   ai.Name,
+		Decimals: 6,
 	}, nil
 }

@@ -151,19 +151,19 @@
     {{- end -}}
     {{- end -}}
 
-    {{- if $tx.TokenTransfers -}}
+    {{- if $tx.TronSpecific.TRC20Transfers -}}
     <div class="row line-top" style="padding: 15px 0 6px 15px;font-weight: bold;">
         ERC20 Token Transfers
     </div>
-    {{- range $erc20 := $tx.TokenTransfers -}}
+    {{- range $trc20 := $tx.TronSpecific.TRC20Transfers -}}
     <div class="row" style="padding: 2px 15px;">
         <div class="col-md-4">
             <div class="row tx-in">
                 <table class="table data-table">
                     <tbody>
-                        <tr{{if isOwnAddress $data $erc20.From}} class="tx-own"{{end}}>
+                        <tr{{if isOwnAddress $data $trc20.From}} class="tx-own"{{end}}>
                             <td>
-                                <span class="ellipsis tx-addr">{{if ne $erc20.From $addr}}<a href="/address/{{$erc20.From}}">{{$erc20.From}}</a>{{else}}{{$erc20.From}}{{end}}</span>
+                                <span class="ellipsis tx-addr">{{if ne $trc20.From $addr}}<a href="/address/{{$trc20.From}}">{{$trc20.From}}</a>{{else}}{{$trc20.From}}{{end}}</span>
                             </td>
                         </tr>
                     </tbody>
@@ -179,16 +179,16 @@
             <div class="row tx-out">
                 <table class="table data-table">
                     <tbody>
-                        <tr{{if isOwnAddress $data $erc20.To}} class="tx-own"{{end}}>
+                        <tr{{if isOwnAddress $data $trc20.To}} class="tx-own"{{end}}>
                             <td>
-                                <span class="ellipsis tx-addr">{{if ne $erc20.To $addr}}<a href="/address/{{$erc20.To}}">{{$erc20.To}}</a>{{else}}{{$erc20.To}}{{end}}</span>
+                                <span class="ellipsis tx-addr">{{if ne $trc20.To $addr}}<a href="/address/{{$trc20.To}}">{{$trc20.To}}</a>{{else}}{{$trc20.To}}{{end}}</span>
                             </td>
                         </tr>
                     </tbody>
                 </table>
             </div>
         </div>
-        <div class="col-md-3 text-right" style="padding: .4rem 0;">{{formatAmountWithDecimals $erc20.Value $erc20.Decimals}} {{$erc20.Symbol}}</div>
+        <div class="col-md-3 text-right" style="padding: .4rem 0;">{{formatAmountWithDecimals $trc20.Value $trc20.Decimals}} {{$trc20.Symbol}}</div>
     </div>
     {{- end -}}
     <div class="row" style="padding: 6px 15px;"></div>

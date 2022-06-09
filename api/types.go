@@ -196,12 +196,17 @@ type EthereumSpecific struct {
 }
 
 type TronSpecific struct {
-	Data              string `json:"data,omitempty"`
-	Type              string `json:"type"`
-	InternalTransfers []InternalTransfer
-	TRC10Transfers    []TokenTransfer
-	TRC20Transfers    []TokenTransfer
-	Status            trx.TxStatus
+	Data               string `json:"data,omitempty"`
+	Type               string `json:"type"`
+	InternalTransfers  []InternalTransfer
+	TRC10Transfers     []TokenTransfer
+	TRC20Transfers     []TokenTransfer
+	Status             trx.TxStatus
+	EnergyUsed         uint64
+	EnergyBurn         uint64
+	EnergyFromContract uint64
+	BandwidthUsed      uint64
+	BandwidthBurn      uint64
 }
 
 // Tx holds information about a transaction

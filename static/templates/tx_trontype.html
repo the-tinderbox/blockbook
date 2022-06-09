@@ -34,6 +34,18 @@
                 <td class="data">{{formatAmount $tx.ValueOutSat}} {{$cs}}</td>
             </tr>
             <tr>
+                <td>Energy Used / Burn</td>
+                <td class="data">{{$tx.TronSpecific.EnergyUsed}} / {{$tx.TronSpecific.EnergyBurn}}</td>
+            </tr>
+            <tr>
+                <td>Energy From Contract</td>
+                <td class="data">{{$tx.TronSpecific.EnergyFromContract}}</td>
+            </tr>
+            <tr>
+                <td>Bandwidth Used / Burn</td>
+                <td class="data">{{$tx.TronSpecific.BandwidthUsed}} / {{$tx.TronSpecific.BandwidthBurn}}</td>
+            </tr>
+            <tr>
                 <td>Fees</td>
                 <td class="data">{{formatAmount $tx.FeesSat}} {{$cs}}</td>
             </tr>

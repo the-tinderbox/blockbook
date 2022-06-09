@@ -80,10 +80,15 @@ type TxStatus int
 
 // TronTxData contains tron specific transaction data
 type TronTxData struct {
-	Status TxStatus `json:"status"` // 1 OK, 0 Fail
-	Data   string   `json:"data"`
-	Type   string   `json:"type"`
-	Fee    *big.Int `json:"fee"`
+	Status             TxStatus `json:"status"` // 1 OK, 0 Fail
+	Data               string   `json:"data"`
+	Type               string   `json:"type"`
+	Fee                *big.Int `json:"fee"`
+	EnergyUsed         uint64   `json:"energy_used"`
+	EnergyBurn         uint64   `json:"energy_burn"`
+	EnergyFromContract uint64   `json:"energy_from_contract"`
+	BandwidthUsed      uint64   `json:"bandwidth_used"`
+	BandwidthBurn      uint64   `json:"bandwidth_burn"`
 }
 
 func GetTronTxData(tx *bchain.Tx) *TronTxData {
@@ -101,11 +106,13 @@ func GetTronTxDataFromSpecificData(coinSpecificData interface{}) *TronTxData {
 			etd.Status = 0
 		}
 
-		log.Printf("STATUS: %v\n", etd.Status)
-
 		etd.Type = csd.Tx.Contract[0].Type
-
 		etd.Fee = csd.Tx.Info.Fee
+		etd.EnergyUsed = csd.Tx.Info.Receipt.OriginEnergyUsage.Uint64()
+		etd.EnergyBurn = csd.Tx.Info.Receipt.EnergyFee.Uint64()
+		etd.EnergyFromContract = 0
+		etd.BandwidthUsed = csd.Tx.Info.Receipt.NetUsage.Uint64()
+		etd.BandwidthBurn = csd.Tx.Info.Receipt.NetFee.Uint64()
 	}
 
 	return &etd
@@ -117,9 +124,14 @@ func tronTxToTx(tx *Transaction, blockTime int64, confirmations uint32) (*bchain
 	}
 
 	valueSat := big.NewInt(0)
+	to := tx.Contract[0].To
 
-	if tx.Contract[0].Type != TransferAssetContract {
+	if tx.Contract[0].Type != TransferAssetContract && tx.Contract[0].Type != TriggerSmartContract {
 		valueSat.Set(tx.Contract[0].Amount)
+	}
+
+	if tx.Contract[0].Type == TriggerSmartContract && tx.Contract[0].ContractCallType == Trc20Transfer {
+		to = tx.Contract[0].ContractAddress
 	}
 
 	return &bchain.Tx{
@@ -145,7 +157,7 @@ func tronTxToTx(tx *Transaction, blockTime int64, confirmations uint32) (*bchain
 				ValueSat: *valueSat,
 				ScriptPubKey: bchain.ScriptPubKey{
 					// Hex
-					Addresses: []string{tx.Contract[0].To},
+					Addresses: []string{to},
 				},
 			},
 		},
@@ -200,8 +212,8 @@ func (p *TronParser) TronTypeGetTrc10FromTx(tx *bchain.Tx) ([]bchain.Trc10Transf
 	return r, nil
 }
 
-func (p *TronParser) EthereumTypeGetErc20FromTx(tx *bchain.Tx) ([]bchain.Erc20Transfer, error) {
-	var r []bchain.Erc20Transfer
+func (p *TronParser) TronTypeGetTrc20FromTx(tx *bchain.Tx) ([]bchain.Trc20Transfer, error) {
+	var r []bchain.Trc20Transfer
 
 	csd, ok := tx.CoinSpecificData.(TransactionSpecificData)
 	if ok {
@@ -209,24 +221,22 @@ func (p *TronParser) EthereumTypeGetErc20FromTx(tx *bchain.Tx) ([]bchain.Erc20Tr
 		if csd.Tx.Contract[0].Type == TriggerSmartContract {
 			// Get token transfers from tx
 			if csd.Tx.Contract[0].ContractCallType == Trc20Transfer {
-				r = append(r, bchain.Erc20Transfer{
+				r = append(r, bchain.Trc20Transfer{
 					Contract: csd.Tx.Contract[0].ContractAddress,
 					From:     csd.Tx.Contract[0].From,
-					To:       csd.Tx.Contract[0].ContractAddress,
+					To:       csd.Tx.Contract[0].To,
 					Tokens:   *csd.Tx.Contract[0].Amount,
 				})
 			}
 
 			// Get token transfers from logs
-			for _, l := range csd.Tx.Info.Log {
+			/*for _, l := range csd.Tx.Info.Log {
 				to, _, err := ParseTransferEvent(l.Data)
 
 				if err == nil {
-					log.Println(to)
-				} else {
-					log.Println(err)
+					return nil, err
 				}
-			}
+			}*/
 		}
 	}
 

@@ -263,6 +263,7 @@ type TransactionInfoReceipt struct {
 	OriginEnergyUsage *big.Int `json:"origin_energy_usage"`
 	EnergyUsageTotal  *big.Int `json:"energy_usage_total"`
 	NetFee            *big.Int `json:"net_fee"`
+	NetUsage          *big.Int `json:"net_usage"`
 	Result            string   `json:"result"`
 }
 
@@ -354,10 +355,11 @@ func NewTransactionInfo(json *gjson.Result, isTestnet bool) (*TransactionInfo, e
 		BlockNumber:    gjson.Get(json.Raw, "blockNumber").Uint(),
 		BlockTimeStamp: gjson.Get(json.Raw, "blockTimeStamp").Int(),
 		Receipt: &TransactionInfoReceipt{
-			EnergyFee:         big.NewInt(gjson.Get(json.Raw, "energy_fee").Int()),
-			OriginEnergyUsage: big.NewInt(gjson.Get(json.Raw, "origin_energy_usage").Int()),
-			EnergyUsageTotal:  big.NewInt(gjson.Get(json.Raw, "energy_usage_total").Int()),
-			NetFee:            big.NewInt(gjson.Get(json.Raw, "net_fee").Int()),
+			EnergyFee:         big.NewInt(gjson.Get(json.Raw, "receipt.energy_fee").Int()),
+			OriginEnergyUsage: big.NewInt(gjson.Get(json.Raw, "receipt.energy_usage").Int()),
+			EnergyUsageTotal:  big.NewInt(gjson.Get(json.Raw, "receipt.energy_usage_total").Int()),
+			NetFee:            big.NewInt(gjson.Get(json.Raw, "receipt.net_fee").Int()),
+			NetUsage:          big.NewInt(gjson.Get(json.Raw, "receipt.net_usage").Int()),
 			Result:            gjson.Get(json.Raw, "result").String(),
 		},
 		Log:                  l,

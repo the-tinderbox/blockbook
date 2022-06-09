@@ -291,23 +291,28 @@ func (w *Worker) GetTransactionFromBchainTx(bchainTx *bchain.Tx, height int, spe
 		}
 		trc10t := w.getTokensFromTrc10(trc10ts)
 
-		/*trc20ts, err := w.chainParser.TronTypeGetTrc20FromTx(bchainTx)
+		trc20ts, err := w.chainParser.TronTypeGetTrc20FromTx(bchainTx)
 		if err != nil {
 			glog.Errorf("GetTrc20FromTx error %v, %v", err, bchainTx)
 		}
-		trc20tokens := w.getTokensFromTrc20(trc20ts)*/
+		trc20t := w.getTokensFromTrc20(trc20ts)
 
 		tronTxData := trx.GetTronTxData(bchainTx)
 		if len(bchainTx.Vout) > 0 {
 			valOutSat = bchainTx.Vout[0].ValueSat
 		}
 		tronSpecific = &TronSpecific{
-			Type:              tronTxData.Type,
-			Data:              tronTxData.Data,
-			TRC10Transfers:    trc10t,
-			InternalTransfers: itt,
-			//TRC20Transfers: trc20ts,
-			Status: tronTxData.Status,
+			Type:               tronTxData.Type,
+			Data:               tronTxData.Data,
+			TRC10Transfers:     trc10t,
+			InternalTransfers:  itt,
+			TRC20Transfers:     trc20t,
+			Status:             tronTxData.Status,
+			EnergyUsed:         tronTxData.EnergyUsed,
+			EnergyBurn:         tronTxData.EnergyBurn,
+			EnergyFromContract: tronTxData.EnergyFromContract,
+			BandwidthUsed:      tronTxData.BandwidthUsed,
+			BandwidthBurn:      tronTxData.BandwidthBurn,
 		}
 		feesSat.Set(tronTxData.Fee)
 	}
@@ -520,6 +525,40 @@ func (w *Worker) getTokensFromTrc10(trc10 []bchain.Trc10Transfer) []TokenTransfe
 			Value:    (*Amount)(&e.Tokens),
 			Name:     trc10c.Name,
 			Symbol:   trc10c.Symbol,
+		}
+	}
+	return tokens
+}
+
+func (w *Worker) getTokensFromTrc20(trc20 []bchain.Trc20Transfer) []TokenTransfer {
+	tokens := make([]TokenTransfer, len(trc20))
+
+	for i := range trc20 {
+		e := &trc20[i]
+
+		cd, err := w.chainParser.GetAddrDescFromAddress(e.Contract)
+		if err != nil {
+			glog.Errorf("GetAddrDescFromAddress error %v, contract %v", err, e.Contract)
+			continue
+		}
+		trc20c, err := w.chain.TronTypeGetTrc20ContractInfo(cd)
+		if err != nil {
+			glog.Errorf("GetTrc20ContractInfo error %v, contract %v", err, e.Contract)
+		}
+
+		if trc20c == nil {
+			trc20c = &bchain.Trc20Contract{Name: e.Contract}
+		}
+
+		tokens[i] = TokenTransfer{
+			Type:     TRC20TokenType,
+			Token:    e.Contract,
+			From:     e.From,
+			To:       e.To,
+			Decimals: trc20c.Decimals,
+			Value:    (*Amount)(&e.Tokens),
+			Name:     trc20c.Name,
+			Symbol:   trc20c.Symbol,
 		}
 	}
 	return tokens

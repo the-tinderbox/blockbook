@@ -204,6 +204,7 @@ func (c *Client) GetAccountBalance(address string, block *Block) (int64, error) 
 
 func (c *Client) GetContractInfo(contractAddress string) (*ContractInfo, error) {
 	value, _, err := DecodeAddress(contractAddress, c.config.TestNet)
+
 	if err != nil {
 		return nil, err
 	}
