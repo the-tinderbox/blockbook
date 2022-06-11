@@ -27,6 +27,8 @@ const (
 
 	SUCCESS = "SUCCESS"
 	REVERT  = "REVERT"
+
+	NO_ADDRESS = "NO_ADDRESS"
 )
 
 // Contract Types
@@ -498,6 +500,7 @@ func NewContract(json gjson.Result, isTestnet bool) (*Contract, error) {
 	b.Type = gjson.Get(json.Raw, "type").String()
 	b.Parameter = gjson.Get(json.Raw, "parameter")
 	b.From, err = EncodeAddress(b.Parameter.Get("value.owner_address").String(), isTestnet)
+	b.To = NO_ADDRESS
 	b.Amount = common.StringNumToBigIntWithExp("0", 0)
 	b.ContractCallType = UnknownCall
 

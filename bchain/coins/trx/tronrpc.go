@@ -19,7 +19,7 @@ type Configuration struct {
 	RPCTimeout           int    `json:"rpc_timeout"`
 	BlockAddressesToKeep int    `json:"block_addresses_to_keep"`
 	TestNet              bool   `json:"testnet"`
-	BestBlock            uint32 `json:"best_block"`
+	StopAtBlock          uint32 `json:"stop_at_block"`
 }
 
 type TronRPC struct {
@@ -88,12 +88,14 @@ func (b *TronRPC) Initialize() error {
 	b.Testnet = b.ChainConfig.TestNet
 
 	if b.ChainConfig.TestNet {
-		b.Network = "livenet"
-	} else {
 		b.Network = "testnet"
+	} else {
+		b.Network = "livenet"
 	}
 
 	glog.Info("rpc: block chain ", b.Network)
+
+	// TODO: wait for new blocks
 
 	return nil
 }
@@ -145,33 +147,30 @@ func (b *TronRPC) GetChainInfo() (*bchain.ChainInfo, error) {
 }
 
 func (b *TronRPC) GetBestBlockHash() (string, error) {
-	/*ni, err := b.rpc.GetNodeInfo()
+	bbh, err := b.GetBestBlockHeight()
 	if err != nil {
 		return "", err
 	}
 
-	return ni.BestBlockHash, nil*/
-	bh, err := b.GetBestBlockHeight()
+	bh, err := b.GetBlockHash(bbh)
 	if err != nil {
 		return "", err
 	}
 
-	bl, err := b.rpc.GetBlockByNum(uint64(bh))
-	if err != nil {
-		return "", err
-	}
-
-	return bl.Hash, nil
+	return bh, nil
 }
 
 func (b *TronRPC) GetBestBlockHeight() (uint32, error) {
-	_, err := b.rpc.GetNodeInfo()
+	if b.ChainConfig.StopAtBlock > 0 {
+		return b.ChainConfig.StopAtBlock, nil
+	}
+
+	ni, err := b.rpc.GetNodeInfo()
 	if err != nil {
 		return 0, err
 	}
 
-	//return uint32(ni.BestBlockNumber), nil
-	return b.ChainConfig.BestBlock, nil // Временно парсим только 10 000 блоков
+	return uint32(ni.BestBlockNumber), nil
 }
 
 func (b *TronRPC) GetBlockHash(height uint32) (string, error) {

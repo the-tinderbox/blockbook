@@ -100,10 +100,15 @@ func GetTronTxDataFromSpecificData(coinSpecificData interface{}) *TronTxData {
 	csd, ok := coinSpecificData.(TransactionSpecificData)
 
 	if ok {
-		if csd.Tx.Ret[0].ContractRet == SUCCESS {
+		// If we have contract execution check contract return state
+		if len(csd.Tx.Ret) > 0 {
+			if csd.Tx.Ret[0].ContractRet == SUCCESS {
+				etd.Status = 1
+			} else if csd.Tx.Ret[0].ContractRet == REVERT {
+				etd.Status = 0
+			}
+		} else {
 			etd.Status = 1
-		} else if csd.Tx.Ret[0].ContractRet == REVERT {
-			etd.Status = 0
 		}
 
 		etd.Type = csd.Tx.Contract[0].Type
@@ -134,6 +139,21 @@ func tronTxToTx(tx *Transaction, blockTime int64, confirmations uint32) (*bchain
 		to = tx.Contract[0].ContractAddress
 	}
 
+	vout := make([]bchain.Vout, 0)
+
+	if tx.Contract[0].To != NO_ADDRESS {
+		vout = []bchain.Vout{
+			{
+				N:        0, // there is always up to one To address
+				ValueSat: *valueSat,
+				ScriptPubKey: bchain.ScriptPubKey{
+					// Hex
+					Addresses: []string{to},
+				},
+			},
+		}
+	}
+
 	return &bchain.Tx{
 		Blocktime:     blockTime,
 		Confirmations: confirmations,
@@ -151,16 +171,7 @@ func tronTxToTx(tx *Transaction, blockTime int64, confirmations uint32) (*bchain
 				// Vout
 			},
 		},
-		Vout: []bchain.Vout{
-			{
-				N:        0, // there is always up to one To address
-				ValueSat: *valueSat,
-				ScriptPubKey: bchain.ScriptPubKey{
-					// Hex
-					Addresses: []string{to},
-				},
-			},
-		},
+		Vout:             vout,
 		CoinSpecificData: csd,
 	}, nil
 }
