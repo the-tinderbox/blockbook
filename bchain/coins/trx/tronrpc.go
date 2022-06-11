@@ -132,11 +132,13 @@ func (b *TronRPC) GetChainInfo() (*bchain.ChainInfo, error) {
 	}
 
 	rv := &bchain.ChainInfo{
-		Blocks:        int(ni.BestBlockNumber),
-		Bestblockhash: ni.BestBlockHash,
-		Difficulty:    "0",
-		Version:       ni.Version,
-		Chain:         b.Network,
+		Blocks:          int(ni.BestBlockNumber),
+		Bestblockhash:   ni.BestBlockHash,
+		Difficulty:      "0",
+		Version:         ni.Version,
+		ProtocolVersion: ni.ProtocolVersion,
+		Chain:           b.Network,
+		Additional:      ni.Additional,
 	}
 
 	return rv, nil

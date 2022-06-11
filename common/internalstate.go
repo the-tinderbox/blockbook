@@ -41,6 +41,7 @@ type BackendInfo struct {
 	Timeoffset      float64     `json:"timeOffset,omitempty"`
 	Warnings        string      `json:"warnings,omitempty"`
 	Consensus       interface{} `json:"consensus,omitempty"`
+	Additional      interface{} `json:"-"`
 }
 
 // InternalState contains the data of the internal state

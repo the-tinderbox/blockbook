@@ -1964,6 +1964,7 @@ func (w *Worker) GetSystemInfo(internal bool) (*SystemInfo, error) {
 		Version:         ci.Version,
 		Warnings:        ci.Warnings,
 		Consensus:       ci.Consensus,
+		Additional:      ci.Additional,
 	}
 	w.is.SetBackendInfo(backendInfo)
 	glog.Info("GetSystemInfo, ", time.Since(start))

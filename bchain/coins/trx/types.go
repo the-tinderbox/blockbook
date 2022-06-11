@@ -109,11 +109,19 @@ func makeTransactionParameter(methodId string, params []SolidityParam) (string, 
 	return data, nil
 }
 
+type AdditionalChainInfo struct {
+	ActiveConnections uint32
+	TotalMemory       int64
+	FreeMemory        int64
+}
+
 // NodeInfo Returns node info
 type NodeInfo struct {
 	BestBlockNumber uint64
 	BestBlockHash   string
 	Version         string
+	ProtocolVersion string
+	Additional      *AdditionalChainInfo
 }
 
 // NewNodeInfo Returns new NodeInfo
@@ -127,7 +135,13 @@ func NewNodeInfo(json *gjson.Result) *NodeInfo {
 	return &NodeInfo{
 		BestBlockNumber: bbn,
 		BestBlockHash:   matches[2],
-		Version:         "FullNode.jar@" + gjson.Get(json.Raw, "configNodeInfo").Get("versionNum").String(),
+		Version:         gjson.Get(json.Raw, "configNodeInfo").Get("codeVersion").String(),
+		ProtocolVersion: gjson.Get(json.Raw, "configNodeInfo").Get("p2pVersion").String(),
+		Additional: &AdditionalChainInfo{
+			ActiveConnections: uint32(gjson.Get(json.Raw, "activeConnectCount").Uint()),
+			TotalMemory:       gjson.Get(json.Raw, "machineInfo").Get("jvmTotalMemory").Int(),
+			FreeMemory:        gjson.Get(json.Raw, "machineInfo").Get("jvmFreeMemory").Int(),
+		},
 	}
 }
 
@@ -204,7 +218,7 @@ func NewBlock(json *gjson.Result, isTestnet bool) (*Block, error) {
 	b.PrevHash = header.Get("parentHash").String()
 	b.Height = header.Get("number").Uint()
 	b.Version = header.Get("version").Uint()
-	b.Time = header.Get("timestamp").Int()
+	b.Time = header.Get("timestamp").Int() / 1000
 	b.MerkleRoot = header.Get("txTrieRoot").String()
 
 	txs := make([]*Transaction, 0)
@@ -353,7 +367,7 @@ func NewTransactionInfo(json *gjson.Result, isTestnet bool) (*TransactionInfo, e
 		TxID:           gjson.Get(json.Raw, "id").String(),
 		Fee:            big.NewInt(gjson.Get(json.Raw, "fee").Int()),
 		BlockNumber:    gjson.Get(json.Raw, "blockNumber").Uint(),
-		BlockTimeStamp: gjson.Get(json.Raw, "blockTimeStamp").Int(),
+		BlockTimeStamp: gjson.Get(json.Raw, "blockTimeStamp").Int() / 1000,
 		Receipt: &TransactionInfoReceipt{
 			EnergyFee:         big.NewInt(gjson.Get(json.Raw, "receipt.energy_fee").Int()),
 			OriginEnergyUsage: big.NewInt(gjson.Get(json.Raw, "receipt.energy_usage").Int()),

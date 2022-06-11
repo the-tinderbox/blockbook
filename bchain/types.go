@@ -175,6 +175,7 @@ type ChainInfo struct {
 	Timeoffset      float64     `json:"timeoffset"`
 	Warnings        string      `json:"warnings"`
 	Consensus       interface{} `json:"consensus,omitempty"`
+	Additional      interface{} `json:"-"`
 }
 
 // RPCError defines rpc error returned by backend

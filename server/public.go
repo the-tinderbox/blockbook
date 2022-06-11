@@ -503,19 +503,21 @@ func (s *PublicServer) parseTemplates() []*template.Template {
 	t := make([]*template.Template, tplCount)
 	t[errorTpl] = createTemplate("./static/templates/error.html", "./static/templates/base.html")
 	t[errorInternalTpl] = createTemplate("./static/templates/error.html", "./static/templates/base.html")
-	t[indexTpl] = createTemplate("./static/templates/index.html", "./static/templates/base.html")
 	t[blocksTpl] = createTemplate("./static/templates/blocks.html", "./static/templates/paging.html", "./static/templates/base.html")
 	t[sendTransactionTpl] = createTemplate("./static/templates/sendtx.html", "./static/templates/base.html")
 	if s.chainParser.GetChainType() == bchain.ChainEthereumType {
+		t[indexTpl] = createTemplate("./static/templates/index.html", "./static/templates/base.html")
 		t[txTpl] = createTemplate("./static/templates/tx.html", "./static/templates/txdetail_ethereumtype.html", "./static/templates/base.html")
 		t[addressTpl] = createTemplate("./static/templates/address.html", "./static/templates/txdetail_ethereumtype.html", "./static/templates/paging.html", "./static/templates/base.html")
 		t[blockTpl] = createTemplate("./static/templates/block.html", "./static/templates/txdetail_ethereumtype.html", "./static/templates/paging.html", "./static/templates/base.html")
 	} else if s.chainParser.GetChainType() == bchain.ChainTronType {
+		t[indexTpl] = createTemplate("./static/templates/index_trontype.html", "./static/templates/base.html")
 		t[txTpl] = createTemplate("./static/templates/tx_trontype.html", "./static/templates/txdetail_trontype.html", "./static/templates/base.html")
 		//t[txTpl] = createTemplate("./static/templates/tx_trontype.html", "./static/templates/txdetail_trontype.html", "./static/templates/base.html")
 		t[addressTpl] = createTemplate("./static/templates/address.html", "./static/templates/txdetail_trontype.html", "./static/templates/paging.html", "./static/templates/base.html")
 		t[blockTpl] = createTemplate("./static/templates/block.html", "./static/templates/txdetail_trontype.html", "./static/templates/paging.html", "./static/templates/base.html")
 	} else {
+		t[indexTpl] = createTemplate("./static/templates/index.html", "./static/templates/base.html")
 		t[txTpl] = createTemplate("./static/templates/tx.html", "./static/templates/txdetail.html", "./static/templates/base.html")
 		t[addressTpl] = createTemplate("./static/templates/address.html", "./static/templates/txdetail.html", "./static/templates/paging.html", "./static/templates/base.html")
 		t[blockTpl] = createTemplate("./static/templates/block.html", "./static/templates/txdetail.html", "./static/templates/paging.html", "./static/templates/base.html")
