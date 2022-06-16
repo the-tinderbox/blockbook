@@ -83,3 +83,7 @@ func (b *BaseChain) TronTypeGetTrc20ContractInfo(contractDesc AddressDescriptor)
 func (b *BaseChain) TronTypeGetTrc20ContractBalance(addrDesc, contractDesc AddressDescriptor) (*big.Int, error) {
 	return nil, errors.New("Not supported")
 }
+
+func (b *BaseChain) TronTypeGetAccount(addrDesc AddressDescriptor) (*TronAccount, error) {
+	return nil, errors.New("Not supported")
+}

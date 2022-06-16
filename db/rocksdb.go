@@ -110,7 +110,7 @@ const (
 	// BitcoinType
 	cfAddressBalance
 	cfTxAddresses
-	// EthereumType
+	// EthereumType & TronType
 	cfAddressContracts = cfAddressBalance
 )
 
@@ -121,6 +121,7 @@ var cfBaseNames = []string{"default", "height", "addresses", "blockTxs", "transa
 // type specific columns
 var cfNamesBitcoinType = []string{"addressBalance", "txAddresses"}
 var cfNamesEthereumType = []string{"addressContracts"}
+var cfNamesTronType = []string{"addressTrc10Contracts", "addressTrc20Contracts"}
 
 func openDB(path string, c *gorocksdb.Cache, openFiles int) (*gorocksdb.DB, []*gorocksdb.ColumnFamilyHandle, error) {
 	// opts with bloom filter
@@ -151,8 +152,10 @@ func NewRocksDB(path string, cacheSize, maxOpenFiles int, parser bchain.BlockCha
 	chainType := parser.GetChainType()
 	if chainType == bchain.ChainBitcoinType {
 		cfNames = append(cfNames, cfNamesBitcoinType...)
-	} else if chainType == bchain.ChainEthereumType || chainType == bchain.ChainTronType {
+	} else if chainType == bchain.ChainEthereumType {
 		cfNames = append(cfNames, cfNamesEthereumType...)
+	} else if chainType == bchain.ChainTronType {
+		cfNames = append(cfNames, cfNamesTronType...)
 	} else {
 		return nil, errors.New("Unknown chain type")
 	}
@@ -465,7 +468,7 @@ func (d *RocksDB) ConnectBlock(block *bchain.Block) error {
 		if err := d.storeAndCleanupBlockTxs(wb, block); err != nil {
 			return err
 		}
-	} else if chainType == bchain.ChainEthereumType || chainType == bchain.ChainTronType {
+	} else if chainType == bchain.ChainEthereumType {
 		addressContracts := make(map[string]*AddrContracts)
 		blockTxs, err := d.processAddressesEthereumType(block, addresses, addressContracts)
 		if err != nil {
@@ -475,6 +478,20 @@ func (d *RocksDB) ConnectBlock(block *bchain.Block) error {
 			return err
 		}
 		if err := d.storeAndCleanupBlockTxsEthereumType(wb, block, blockTxs); err != nil {
+			return err
+		}
+	} else if chainType == bchain.ChainTronType {
+		addressContracts := make(map[string]*TronAddrContracts)
+		blockTxs, err := d.processAddressesTronType(block, addresses, addressContracts)
+		if err != nil {
+			return err
+		}
+
+		if err := d.storeTronAddressContracts(wb, addressContracts); err != nil {
+			return err
+		}
+
+		if err := d.storeAndCleanupBlockTxsTronType(wb, block, blockTxs); err != nil {
 			return err
 		}
 	} else {

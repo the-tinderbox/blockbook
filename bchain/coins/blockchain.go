@@ -358,6 +358,11 @@ func (c *blockChainWithMetrics) TronTypeGetTrc20ContractBalance(addrDesc, contra
 	return c.b.TronTypeGetTrc20ContractBalance(addrDesc, contractDesc)
 }
 
+func (c *blockChainWithMetrics) TronTypeGetAccount(addrDesc bchain.AddressDescriptor) (v *bchain.TronAccount, err error) {
+	defer func(s time.Time) { c.observeRPCLatency("TronTypeGetAccount", s, err) }(time.Now())
+	return c.b.TronTypeGetAccount(addrDesc)
+}
+
 type mempoolWithMetrics struct {
 	mempool bchain.Mempool
 	m       *common.Metrics

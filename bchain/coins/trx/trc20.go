@@ -33,10 +33,20 @@ func ParseTransferEvent(data string) (string, *big.Int, error) {
 	return to, amount, nil
 
 	//amount, err := strconv.ParseInt(data[72:], 16, 64)
-	//if err != nil {
+	//if err != nil {0000000000000000000000000000000000000000000000000001da3cb331b01f
 	//	return "", 0, err
 	//}
 	//return to, amount, nil
+}
+
+func ParseTransactionLog(infoLog *TransactionInfoLog) (string, string, string, *big.Int, error) {
+	if len(infoLog.Topics) == 3 && infoLog.Topics[0] == TRX_TRANSFER_EVENT_ID {
+		amount, _ := new(big.Int).SetString(infoLog.Data, 16)
+
+		return infoLog.Address, infoLog.Topics[1], infoLog.Topics[2], amount, nil
+	}
+
+	return "", "", "", nil, fmt.Errorf("log is not a transfer")
 }
 
 func StringValueToBigInt(value string, base int) (*big.Int, error) {

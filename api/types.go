@@ -3,15 +3,14 @@ package api
 import (
 	"encoding/json"
 	"errors"
+	"github.com/trezor/blockbook/bchain"
+	"github.com/trezor/blockbook/bchain/coins/eth"
 	"github.com/trezor/blockbook/bchain/coins/trx"
+	"github.com/trezor/blockbook/common"
+	"github.com/trezor/blockbook/db"
 	"math/big"
 	"sort"
 	"time"
-
-	"github.com/trezor/blockbook/bchain"
-	"github.com/trezor/blockbook/bchain/coins/eth"
-	"github.com/trezor/blockbook/common"
-	"github.com/trezor/blockbook/db"
 )
 
 const maxUint32 = ^uint32(0)
@@ -282,20 +281,26 @@ type AddressFilter struct {
 // Address holds information about address and its transactions
 type Address struct {
 	Paging
-	AddrStr               string                `json:"address"`
-	BalanceSat            *Amount               `json:"balance"`
-	TotalReceivedSat      *Amount               `json:"totalReceived,omitempty"`
-	TotalSentSat          *Amount               `json:"totalSent,omitempty"`
-	UnconfirmedBalanceSat *Amount               `json:"unconfirmedBalance"`
-	UnconfirmedTxs        int                   `json:"unconfirmedTxs"`
-	Txs                   int                   `json:"txs"`
-	NonTokenTxs           int                   `json:"nonTokenTxs,omitempty"`
-	Transactions          []*Tx                 `json:"transactions,omitempty"`
-	Txids                 []string              `json:"txids,omitempty"`
-	Nonce                 string                `json:"nonce,omitempty"`
-	UsedTokens            int                   `json:"usedTokens,omitempty"`
-	Tokens                []Token               `json:"tokens,omitempty"`
-	Erc20Contract         *bchain.Erc20Contract `json:"erc20Contract,omitempty"`
+	AddrStr               string                             `json:"address"`
+	BalanceSat            *Amount                            `json:"balance"`
+	TotalReceivedSat      *Amount                            `json:"totalReceived,omitempty"`
+	TotalSentSat          *Amount                            `json:"totalSent,omitempty"`
+	UnconfirmedBalanceSat *Amount                            `json:"unconfirmedBalance"`
+	UnconfirmedTxs        int                                `json:"unconfirmedTxs"`
+	Txs                   int                                `json:"txs"`
+	NonTokenTxs           int                                `json:"nonTokenTxs,omitempty"`
+	Transactions          []*Tx                              `json:"transactions,omitempty"`
+	Txids                 []string                           `json:"txids,omitempty"`
+	Nonce                 string                             `json:"nonce,omitempty"`
+	UsedTokens            int                                `json:"usedTokens,omitempty"`
+	Tokens                []Token                            `json:"tokens,omitempty"`
+	Contracts             []Token                            `json:"contracts,omitempty"`
+	Erc20Contract         *bchain.Erc20Contract              `json:"erc20Contract,omitempty"`
+	Trc10Token            *bchain.Trc10Contract              `json:"trc10Contract,omitempty"`
+	Trc20Contract         *bchain.Trc20Contract              `json:"trc20Contract,omitempty"`
+	TrcFrozen             []*bchain.TronAccountFrozenBalance `json:"frozen,omitempty"`
+	TrcVotes              []*bchain.TronAccountVote          `json:"votes,omitempty"`
+	TrcName               string                             `json:"name,omitempty"`
 	// helpers for explorer
 	Filter        string              `json:"-"`
 	XPubAddresses map[string]struct{} `json:"-"`

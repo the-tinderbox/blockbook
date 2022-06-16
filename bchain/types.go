@@ -289,6 +289,26 @@ type XpubDescriptor struct {
 	ExtKey         interface{} // extended key parsed from xpub, usually of type *hdkeychain.ExtendedKey
 }
 
+type TronAccount struct {
+	Name    string
+	Address string
+	Balance int64
+	Votes   []*TronAccountVote
+	Frozen  []*TronAccountFrozenBalance
+	Asset   map[string]*big.Int
+	AssetV2 map[string]*big.Int
+}
+
+type TronAccountVote struct {
+	Address string
+	Count   int64
+}
+
+type TronAccountFrozenBalance struct {
+	Balance    int64
+	ExpireTime int64
+}
+
 // MempoolTxidEntries is array of MempoolTxidEntry
 type MempoolTxidEntries []MempoolTxidEntry
 
@@ -346,6 +366,7 @@ type BlockChain interface {
 	EthereumTypeGetErc20ContractInfo(contractDesc AddressDescriptor) (*Erc20Contract, error)
 	EthereumTypeGetErc20ContractBalance(addrDesc, contractDesc AddressDescriptor) (*big.Int, error)
 	// TronType specific
+	TronTypeGetAccount(addrDesc AddressDescriptor) (*TronAccount, error)
 	TronTypeGetTrc10ContractInfo(contractDesc AddressDescriptor) (*Trc10Contract, error)
 	TronTypeGetTrc10ContractBalance(addrDesc, contractDesc AddressDescriptor) (*big.Int, error)
 	TronTypeGetTrc20ContractInfo(contractDesc AddressDescriptor) (*Trc20Contract, error)

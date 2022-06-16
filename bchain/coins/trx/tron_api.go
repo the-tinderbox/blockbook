@@ -1,15 +1,22 @@
 package trx
 
 import (
+	"bytes"
 	"encoding/hex"
-	"errors"
 	"fmt"
 	"github.com/imroc/req"
+	"github.com/juju/errors"
 	"github.com/tidwall/gjson"
 	"log"
 	"math/big"
 	"net/http"
 	"strconv"
+	"strings"
+)
+
+var (
+	ErrEmptyResponse    = errors.New("Empty response from server")
+	ErrContractNotFound = errors.New("Contract not found")
 )
 
 // A Client is a Tron RPC client. It performs RPCs over HTTP using JSON
@@ -39,6 +46,22 @@ func NewConfig() *ClientConfig {
 }
 
 func (c *Client) call(url string, param interface{}) (*gjson.Result, error) {
+
+	/*pt := reflect.TypeOf(param)
+
+	if pt != nil {
+		cParam := param.(req.Param)
+		paramValues := URL.Values{}
+
+		for k, v := range cParam {
+			paramValues.Set(k, fmt.Sprintf("%v", v))
+		}
+
+		log.Println("API CALL: " + url + "?" + paramValues.Encode())
+	} else {
+		log.Println("API CALL: " + url)
+	}*/
+
 	if c == nil || c.client == nil {
 		return nil, errors.New("API url is not setup. ")
 	}
@@ -63,14 +86,44 @@ func (c *Client) call(url string, param interface{}) (*gjson.Result, error) {
 
 func (c *Client) TronCall(path string, param interface{}) (*gjson.Result, error) {
 	url := c.config.TronNodeRPC + path
+	res, err := c.call(url, param)
 
-	return c.call(url, param)
+	if err != nil {
+		return nil, err
+	}
+
+	resErr := gjson.Get(res.Raw, "Error").String()
+
+	if len(resErr) > 0 {
+		return nil, errors.Annotatef(errors.New(resErr), "Invalid response from server")
+	}
+
+	if strings.TrimSpace(res.String()) == "{}" {
+		return nil, ErrEmptyResponse
+	}
+
+	return res, nil
 }
 
 func (c *Client) SolidityCall(path string, param interface{}) (*gjson.Result, error) {
 	url := c.config.SolidityNodeRPC + path
+	res, err := c.call(url, param)
 
-	return c.call(url, param)
+	if err != nil {
+		return nil, err
+	}
+
+	resErr := gjson.Get(res.Raw, "Error").String()
+
+	if len(resErr) > 0 {
+		return nil, errors.Annotatef(errors.New(resErr), "Invalid response from server")
+	}
+
+	if strings.TrimSpace(res.String()) == "{}" {
+		return nil, ErrEmptyResponse
+	}
+
+	return res, nil
 }
 
 func (c *Client) GetNodeInfo() (*NodeInfo, error) {
@@ -100,7 +153,7 @@ func (c *Client) GetNowBlock() (block *Block, err error) {
 	return block, nil
 }
 
-func (c *Client) GetBlockByNum(num uint64) (block *Block, error error) {
+func (c *Client) GetBlockByNum(num uint32) (block *Block, error error) {
 	r, err := c.TronCall("/wallet/getblockbynum", req.Param{"num": num})
 
 	if err != nil {
@@ -113,7 +166,7 @@ func (c *Client) GetBlockByNum(num uint64) (block *Block, error error) {
 	}
 
 	if block.GetBlockHashID() == "" || block.GetHeight() < 0 {
-		return nil, errors.New("GetBlockByNum [" + strconv.FormatUint(num, 10) + "] failed: No found <block>")
+		return nil, errors.New("GetBlockByNum [" + strconv.FormatUint(uint64(num), 10) + "] failed: No found <block>")
 	}
 
 	return block, nil
@@ -138,10 +191,11 @@ func (c *Client) GetBlockByID(blockID string) (block *Block, err error) {
 	return block, nil
 }
 
-func (c *Client) GetTransactionByID(txID string) (tx *Transaction, err error) {
+func (c *Client) GetTransactionByID(txID string) (*Transaction, error) {
 	log.Println("Get transaction by id [" + txID + "]")
 
 	r, err := c.TronCall("/wallet/gettransactionbyid", req.Param{"value": txID})
+
 	if err != nil {
 		return nil, err
 	}
@@ -156,7 +210,7 @@ func (c *Client) GetTransactionByID(txID string) (tx *Transaction, err error) {
 		return nil, err
 	}
 
-	tx, err = NewTransaction(r, bl.Hash, bl.Height, bl.Time, c.config.TestNet)
+	tx, err := NewTransaction(r, bl.Hash, bl.Height, bl.Time, c.config.TestNet)
 
 	if err != nil {
 		return nil, err
@@ -183,6 +237,30 @@ func (c *Client) GetTransactionInfoById(txID string) (txInfo *TransactionInfo, e
 	return txInfo, err
 }
 
+func (c *Client) GetTransactionInfoByBlockNum(num uint64) (map[string]*TransactionInfo, error) {
+	r, err := c.TronCall("/wallet/gettransactioninfobyblocknum", req.Param{"num": num})
+	if err != nil {
+		return nil, err
+	}
+
+	txsi := make(map[string]*TransactionInfo)
+
+	if r.IsArray() {
+		for _, ti := range r.Array() {
+			txId := gjson.Get(ti.Raw, "id").String()
+
+			txInfo, err := NewTransactionInfo(&ti, c.config.TestNet)
+			if err != nil {
+				return nil, err
+			}
+
+			txsi[txId] = txInfo
+		}
+	}
+
+	return txsi, nil
+}
+
 func (c *Client) GetAccountBalance(address string, block *Block) (int64, error) {
 	params := &AccountBalanceParams{
 		AccountIdentifier: &AccountIdentifier{
@@ -204,6 +282,7 @@ func (c *Client) GetAccountBalance(address string, block *Block) (int64, error) 
 
 func (c *Client) GetContractInfo(contractAddress string) (*ContractInfo, error) {
 	value, _, err := DecodeAddress(contractAddress, c.config.TestNet)
+	log.Println("Getting info about contract [" + string(contractAddress) + " (" + value + ")]")
 
 	if err != nil {
 		return nil, err
@@ -212,10 +291,84 @@ func (c *Client) GetContractInfo(contractAddress string) (*ContractInfo, error) 
 		"value": value,
 	}
 	r, err := c.TronCall("/wallet/getcontract", params)
+
+	if err == ErrEmptyResponse {
+		return nil, ErrContractNotFound
+	} else if err != nil {
+		return nil, err
+	}
+
+	ci, err := NewContractInfo(r, c.config.TestNet)
 	if err != nil {
 		return nil, err
 	}
-	return NewContractInfo(r), nil
+
+	// get precision of token
+	r, err = c.TronCall("/wallet/triggerconstantcontract", req.Param{
+		"contract_address":  value,
+		"function_selector": "decimals()",
+		"owner_address":     ci.OriginAddressHex,
+	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	te := NewTransactionExtention(r)
+
+	if len(te.ConstantResult) > 0 {
+		d, _ := strconv.ParseInt(te.ConstantResult[0], 16, 64)
+		ci.Decimals = int(d)
+	}
+
+	// get token symbol
+	r, err = c.TronCall("/wallet/triggerconstantcontract", req.Param{
+		"contract_address":  value,
+		"function_selector": "symbol()",
+		"owner_address":     ci.OriginAddressHex,
+	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	te = NewTransactionExtention(r)
+
+	if len(te.ConstantResult) > 0 && len(te.ConstantResult[0]) > 0 {
+		s, err := hex.DecodeString(te.ConstantResult[0][len(te.ConstantResult[0])-64:])
+
+		if err != nil {
+			return nil, err
+		}
+
+		ci.Symbol = string(bytes.Trim(s, "\x00"))
+	}
+
+	// if no name specified get it from constant
+	if len(ci.Name) == 0 {
+		r, err = c.TronCall("/wallet/triggerconstantcontract", req.Param{
+			"contract_address":  value,
+			"function_selector": "name()",
+			"owner_address":     ci.OriginAddressHex,
+		})
+		if err != nil {
+			return nil, err
+		}
+
+		te = NewTransactionExtention(r)
+
+		if len(te.ConstantResult) > 0 && len(te.ConstantResult[0]) > 0 {
+			s, err := hex.DecodeString(te.ConstantResult[0][len(te.ConstantResult[0])-64:])
+
+			if err != nil {
+				return nil, err
+			}
+
+			ci.Name = string(bytes.Trim(s, "\x00"))
+		}
+	}
+
+	return ci, nil
 }
 
 // TriggerSmartContract triggers smart contract method
@@ -288,13 +441,19 @@ func (c *Client) GetTRC20Balance(address string, contractAddress string) (*big.I
 }
 
 func (c *Client) GetTRC10Balance(address string, tokenID string) (*big.Int, error) {
-
 	a, _, err := c.GetTRXAccount(address)
 	if err != nil {
 		return big.NewInt(0), err
 	}
 
-	return a.AssetV2[tokenID], nil
+	// tokenID may be id or name
+	if v2balance, ok := a.AssetV2[tokenID]; ok {
+		return v2balance, nil
+	} else if balance, ok := a.Asset[tokenID]; ok {
+		return balance, nil
+	} else {
+		return big.NewInt(0), err
+	}
 }
 
 func (c *Client) GetTRXAccount(address string) (account *Account, exist bool, err error) {
@@ -309,7 +468,10 @@ func (c *Client) GetTRXAccount(address string) (account *Account, exist bool, er
 	if err != nil {
 		return nil, false, err
 	}
-	account = NewAccount(r)
+	account, err = NewAccount(r, c.config.TestNet)
+	if err != nil {
+		return nil, false, err
+	}
 
 	if len(account.AddressHex) == 0 {
 		return account, false, nil

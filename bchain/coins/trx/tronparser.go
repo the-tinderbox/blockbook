@@ -1,17 +1,16 @@
 package trx
 
 import (
-	"encoding/hex"
 	"encoding/json"
-	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/juju/errors"
 	"github.com/trezor/blockbook/bchain"
-	"log"
 	"math/big"
 )
 
-// EthereumTypeAddressDescriptorLen - in case of EthereumType, the AddressDescriptor has fixed length
-const EthereumTypeAddressDescriptorLen = 17
+const TronTypeTokenDescriptorLen = 30
+
+// TronTypeAddressDescriptorLen - in case of TronType, the AddressDescriptor has fixed length
+const TronTypeAddressDescriptorLen = 34
 
 // TronAmountDecimalPoint defines number of decimal points in TRX amounts
 const TronAmountDecimalPoint = 6
@@ -51,18 +50,26 @@ func (p *TronParser) GetScriptFromAddrDesc(addrDesc bchain.AddressDescriptor) ([
 	return addrDesc, nil
 }
 
+func (p *TronParser) PackBlockHash(hash string) ([]byte, error) {
+	return []byte(hash), nil
+}
+
+func (p *TronParser) UnpackBlockHash(buf []byte) (string, error) {
+	return string(buf), nil
+}
+
 func (p *TronParser) PackedTxidLen() int {
-	return 32
+	return 64
 }
 
 // PackTxid packs txid to byte array
 func (p *TronParser) PackTxid(txid string) ([]byte, error) {
-	return hex.DecodeString(txid)
+	return []byte(txid), nil
 }
 
 // UnpackTxid unpacks byte array to txid
 func (p *TronParser) UnpackTxid(buf []byte) (string, error) {
-	return hexutil.Encode(buf), nil
+	return string(buf), nil
 }
 
 func GetHeightFromTx(tx *bchain.Tx) (uint32, error) {
@@ -131,7 +138,7 @@ func tronTxToTx(tx *Transaction, blockTime int64, confirmations uint32) (*bchain
 	valueSat := big.NewInt(0)
 	to := tx.Contract[0].To
 
-	if tx.Contract[0].Type != TransferAssetContract && tx.Contract[0].Type != TriggerSmartContract {
+	if tx.Contract[0].Type != TransferAssetContract {
 		valueSat.Set(tx.Contract[0].Amount)
 	}
 
@@ -211,6 +218,8 @@ func (p *TronParser) TronTypeGetTrc10FromTx(tx *bchain.Tx) ([]bchain.Trc10Transf
 	if ok {
 		// TRC 10
 		if csd.Tx.Contract[0].Type == TransferAssetContract {
+			//log.Printf("TRC 10: CA: %s, F: %s, T: %s, A: %d", csd.Tx.Contract[0].ContractAddress, csd.Tx.Contract[0].From, csd.Tx.Contract[0].To, csd.Tx.Contract[0].Amount)
+
 			r = append(r, bchain.Trc10Transfer{
 				Contract: csd.Tx.Contract[0].ContractAddress,
 				From:     csd.Tx.Contract[0].From,
@@ -241,13 +250,18 @@ func (p *TronParser) TronTypeGetTrc20FromTx(tx *bchain.Tx) ([]bchain.Trc20Transf
 			}
 
 			// Get token transfers from logs
-			/*for _, l := range csd.Tx.Info.Log {
-				to, _, err := ParseTransferEvent(l.Data)
+			for _, l := range csd.Tx.Info.Log {
+				contract, from, to, amount, err := ParseTransactionLog(l)
 
 				if err == nil {
-					return nil, err
+					r = append(r, bchain.Trc20Transfer{
+						Contract: contract,
+						From:     from,
+						To:       to,
+						Tokens:   *amount,
+					})
 				}
-			}*/
+			}
 		}
 	}
 
@@ -262,8 +276,6 @@ func (p *TronParser) TronTypeGetInternalFromTx(tx *bchain.Tx) ([]bchain.Internal
 		// TRC 20
 		if csd.Tx.Contract[0].Type == TriggerSmartContract {
 			for _, it := range csd.Tx.Info.InternalTransactions {
-				log.Println(it)
-
 				t = append(t, bchain.InternalTransfer{
 					From:  it.CallerAddress,
 					To:    it.TransferToAddress,

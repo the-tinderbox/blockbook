@@ -19,7 +19,7 @@ const (
 
 	TRC20_BALANCE_OF_METHOD  = "balanceOf(address)"
 	TRC20_TRANSFER_METHOD_ID = "a9059cbb"
-	TRX_TRANSFER_EVENT_ID    = "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef"
+	TRX_TRANSFER_EVENT_ID    = "ddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef"
 
 	SOLIDITY_TYPE_ADDRESS = "address"
 	SOLIDITY_TYPE_UINT256 = "uint256"
@@ -247,7 +247,7 @@ type TransactionSpecificData struct {
 type TransactionInfo struct {
 	TxID                 string                            `json:"id"`
 	Fee                  *big.Int                          `json:"fee"`
-	BlockNumber          uint64                            `json:"blockNumber"`
+	BlockNumber          uint32                            `json:"blockNumber"`
 	BlockTimeStamp       int64                             `json:"blockTimeStamp"`
 	ContractAddress      string                            `json:"contract_address"`
 	Receipt              *TransactionInfoReceipt           `json:"receipt"`
@@ -293,7 +293,6 @@ func NewTransactionInfoLog(json *gjson.Result, isTestnet bool) (*TransactionInfo
 	}
 
 	le.Address = a
-	log.Println("Address: " + a)
 
 	t := make([]string, 0)
 
@@ -302,6 +301,13 @@ func NewTransactionInfoLog(json *gjson.Result, isTestnet bool) (*TransactionInfo
 	}
 
 	le.Topics = t
+
+	if len(le.Topics) == 3 && le.Topics[0] == TRX_TRANSFER_EVENT_ID {
+		le.Topics[1], err = EncodeAddress(le.Topics[1][24:], isTestnet)
+		le.Topics[2], err = EncodeAddress(le.Topics[2][24:], isTestnet)
+	}
+
+	le.Data = gjson.Get(json.Raw, "data").String()
 
 	return le, nil
 }
@@ -368,7 +374,7 @@ func NewTransactionInfo(json *gjson.Result, isTestnet bool) (*TransactionInfo, e
 	return &TransactionInfo{
 		TxID:           gjson.Get(json.Raw, "id").String(),
 		Fee:            big.NewInt(gjson.Get(json.Raw, "fee").Int()),
-		BlockNumber:    gjson.Get(json.Raw, "blockNumber").Uint(),
+		BlockNumber:    uint32(gjson.Get(json.Raw, "blockNumber").Uint()),
 		BlockTimeStamp: gjson.Get(json.Raw, "blockTimeStamp").Int() / 1000,
 		Receipt: &TransactionInfoReceipt{
 			EnergyFee:         big.NewInt(gjson.Get(json.Raw, "receipt.energy_fee").Int()),
@@ -443,6 +449,10 @@ func NewTransaction(json *gjson.Result, blockHash string, blockHeight uint64, bl
 				contract.ContractRet = b.Ret[i].ContractRet
 			}
 			b.Contract = append(b.Contract, contract)
+
+			if ci.Type == TriggerSmartContract {
+				log.Println("TRANSFER [" + ci.ContractCallType + "]: " + b.TxID)
+			}
 		}
 	}
 
@@ -583,22 +593,41 @@ func NewContract(json gjson.Result, isTestnet bool) (*Contract, error) {
 
 // ContractInfo Describes contract
 type ContractInfo struct {
-	Bytecode                   string
-	Name                       string
-	ConsumeUserResourcePercent uint64
-	ContractAddress            string
-	ABI                        string
+	//Bytecode                   string
+	Name string
+	//ConsumeUserResourcePercent uint64
+	ContractAddress  string
+	OriginAddress    string
+	OriginAddressHex string
+	Symbol           string
+	Decimals         int
+	//ABI                        string
 }
 
 // NewContractInfo Returns new ContractInfo
-func NewContractInfo(json *gjson.Result) *ContractInfo {
+func NewContractInfo(json *gjson.Result, isTestnet bool) (*ContractInfo, error) {
 	obj := &ContractInfo{}
-	obj.Bytecode = json.Get("bytecode").String()
+	//obj.Bytecode = json.Get("bytecode").String()
 	obj.Name = json.Get("name").String()
-	obj.ConsumeUserResourcePercent = json.Get("consume_user_resource_percent").Uint()
-	obj.ContractAddress = json.Get("contract_address").String()
-	obj.ABI = json.Get("abi.entrys").Raw
-	return obj
+	//obj.ConsumeUserResourcePercent = json.Get("consume_user_resource_percent").Uint()
+	ca, err := EncodeAddress(json.Get("contract_address").String(), isTestnet)
+
+	if err != nil {
+		return nil, err
+	}
+
+	obj.ContractAddress = ca
+
+	obj.OriginAddressHex = json.Get("origin_address").String()
+	oa, err := EncodeAddress(obj.OriginAddressHex, isTestnet)
+
+	if err != nil {
+		return nil, err
+	}
+
+	obj.OriginAddress = oa
+	//obj.ABI = json.Get("abi.entrys").Raw
+	return obj, nil
 }
 
 // TransactionExtension Detailed info for transaction
@@ -644,18 +673,42 @@ func NewReturn(json *gjson.Result) *Return {
 	return b
 }
 
+type Vote struct {
+	Address string
+	Count   int64
+}
+
+type FrozenBalance struct {
+	Balance    int64
+	ExpireTime int64
+}
+
 // Account Describes account info
 type Account struct {
+	Name                string
 	AddressHex          string
 	Balance             int64
 	FreeNetUsage        int64
+	Asset               map[string]*big.Int
 	AssetV2             map[string]*big.Int
 	FreeAssetNetUsageV2 map[string]int64
+	Votes               []*Vote
+	Frozen              []*FrozenBalance
 }
 
 // NewAccount Returns new Account
-func NewAccount(json *gjson.Result) *Account {
+func NewAccount(json *gjson.Result, isTestnet bool) (*Account, error) {
 	obj := &Account{}
+
+	an := json.Get("account_name").String()
+	if len(an) > 0 {
+		n, err := hex.DecodeString(an)
+
+		if err == nil {
+			obj.Name = string(n)
+		}
+	}
+
 	obj.AddressHex = json.Get("address").String()
 	obj.Balance = json.Get("balance").Int()
 	obj.FreeNetUsage = json.Get("free_net_usage").Int()
@@ -668,6 +721,14 @@ func NewAccount(json *gjson.Result) *Account {
 		}
 	}
 
+	obj.Asset = make(map[string]*big.Int, 0)
+	asset := json.Get("asset")
+	if asset.IsArray() {
+		for _, as := range asset.Array() {
+			obj.Asset[as.Get("key").String()] = StringNumToBigIntWithExp(as.Get("value").String(), 0)
+		}
+	}
+
 	obj.FreeAssetNetUsageV2 = make(map[string]int64, 0)
 	freeAssetNetUsageV2 := json.Get("free_asset_net_usageV2")
 	if freeAssetNetUsageV2.IsArray() {
@@ -675,7 +736,36 @@ func NewAccount(json *gjson.Result) *Account {
 			obj.FreeAssetNetUsageV2[as.Get("key").String()] = as.Get("value").Int()
 		}
 	}
-	return obj
+
+	obj.Votes = make([]*Vote, 0)
+	votes := json.Get("votes")
+	if votes.IsArray() {
+		for _, v := range votes.Array() {
+			va, err := EncodeAddress(v.Get("vote_address").String(), isTestnet)
+
+			if err != nil {
+				return nil, err
+			}
+
+			obj.Votes = append(obj.Votes, &Vote{
+				Address: va,
+				Count:   v.Get("vote_count").Int(),
+			})
+		}
+	}
+
+	obj.Frozen = make([]*FrozenBalance, 0)
+	frozen := json.Get("frozen")
+	if frozen.IsArray() {
+		for _, f := range frozen.Array() {
+			obj.Frozen = append(obj.Frozen, &FrozenBalance{
+				Balance:    f.Get("frozen_balance").Int(),
+				ExpireTime: f.Get("expire_time").Int(),
+			})
+		}
+	}
+
+	return obj, nil
 }
 
 func (a *Account) GetAddress(isTestnet bool) (string, error) {
@@ -688,6 +778,7 @@ type AssetInfo struct {
 	ID           string
 	Name         string
 	Abr          string
+	Decimals     int
 }
 
 // NewAssetInfo Returns new AssetInfo
@@ -701,6 +792,7 @@ func NewAssetInfo(json *gjson.Result, isTestnet bool) *AssetInfo {
 		Name:         string(n),
 		Abr:          string(a),
 		ID:           gjson.Get(json.Raw, "id").String(),
+		Decimals:     int(gjson.Get(json.Raw, "precision").Int()),
 	}
 }
 

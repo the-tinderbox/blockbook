@@ -1,30 +1,219 @@
 package main
 
 import (
-	"encoding/hex"
-	"github.com/trezor/blockbook/bchain/coins/trx"
-	"log"
+	"github.com/bsm/go-vlq"
+	"github.com/trezor/blockbook/bchain"
 )
 
+const (
+	TronTypeTrc10Contract = iota
+	TronTypeTrc20Contract
+)
+
+// TronAddrContract is Contract address with number of transactions done by given address
+type TronAddrContract struct {
+	Type     uint
+	Contract bchain.AddressDescriptor
+	Txs      uint
+}
+
+// TronAddrContracts contains number of transactions and contracts for an address
+type TronAddrContracts struct {
+	TotalTxs       uint
+	NonContractTxs uint
+	Contracts      []TronAddrContract
+}
+
+func packVarint(i int, buf []byte) int {
+	return vlq.PutInt(buf, int64(i))
+}
+
+func packVaruint(i uint, buf []byte) int {
+	return vlq.PutUint(buf, uint64(i))
+}
+
+func unpackVaruint(buf []byte) (uint, int) {
+	i, ofs := vlq.Uint(buf)
+	return uint(i), ofs
+}
+
 func main() {
-	log.Println("Running test")
+	//st, _ := hex.DecodeString("4372616674796d653630")
+	//log.Println()
+	/*a, _ := trx.EncodeAddress("41734c2f23ab41c52308d1206c4eb5fe8e124e6898", false)
+	log.Println(a)*/
+	/*buf := []byte{53, 49, 102, 98, 102, 51, 57, 97, 100, 55, 49, 102, 100, 102, 102, 97, 50, 51, 48, 100, 102, 101, 52, 49, 49, 98, 54, 97, 97, 97, 52, 98, 51, 50, 97, 99, 51, 49, 57, 50, 102, 102, 97, 51, 52, 54, 48, 98, 99, 101, 49, 100, 56, 98, 98, 50, 100, 54, 101, 50, 97, 50, 49, 53}
+	log.Println(len(string(buf)))*/
+
+	/*buf := make([]byte, 64)
+	zeroContract := make([]byte, trx.TronTypeTokenDescriptorLen)
+	appendContract := func(a bchain.AddressDescriptor) {
+		if len(a) != trx.TronTypeTokenDescriptorLen {
+			buf = append(buf, zeroContract...)
+		} else {
+			buf = append(buf, a...)
+		}
+	}
+
+	appendContract(bchain.AddressDescriptor("test"))
+	log.Println(buf)
+	os.Exit(0)*/
+
+	//test := "aaaaaaaaaa"
+	//log.Println(hex.EncodeToString([]byte(test)))
+	//os.Exit(0)
+
+	//str := "000000000000000000000000000000000000000000000000000000000000002000000000000000000000000000000000000000000000000000000000000000054d43532d50000000000000000000000000000000000000000000000000000000"
+	//log.Println(str[len(str)-64:])
+	//i, _ := hex.DecodeString(str[len(str)-64:])
+	//fmt.Printf("%x", bytes.Trim(i, "\x00"))
+	//log.Println(string(bytes.Trim(i, "\x00")))
+
+	//os.Exit(0)
+	//buf := []byte{21, 21, 0, 84, 82, 88, 84, 101, 115, 116, 67, 111, 105, 110, 2}
+	//buf := []byte{21, 21, 0, 84, 82, 88, 84, 101, 115, 116, 67, 111, 105, 110, 2}
+	/*log.Printf("^int32(0): %d", ^int32(0))
+	log.Printf("^int32(i + 1): %d", ^int32(^int32(0)+1))
+
+	acs := &TronAddrContracts{
+		TotalTxs:       1123,
+		NonContractTxs: 927,
+		Contracts: []TronAddrContract{
+			TronAddrContract{
+				Type:     TronTypeTrc10Contract,
+				Contract: []byte("TAHJP2Mb9kAXe5UmiYbUhoW1CGHuKCRNpw"),
+				Txs:      13,
+			},
+			TronAddrContract{
+				Type:     TronTypeTrc20Contract,
+				Contract: []byte("TXGAjm87CGe4DWNjqXGmbDiDFsADPLT5wM"),
+				Txs:      881,
+			},
+		},
+	}
+	buf := make([]byte, 64)
+	varBuf := make([]byte, vlq.MaxLen64)
+
+	buf = buf[:0]
+
+	l := packVaruint(acs.TotalTxs, varBuf)
+	buf = append(buf, varBuf[:l]...)
+
+	log.Println(buf)
+	log.Println(varBuf)
+	log.Println("------------")
+
+	l = packVaruint(acs.NonContractTxs, varBuf)
+	buf = append(buf, varBuf[:l]...)
+
+	log.Println(buf)
+	log.Println(varBuf)
+	log.Println("------------")
+
+	for _, ac := range acs.Contracts {
+		log.Println("Contract...")
+
+		l = packVaruint(ac.Type, varBuf)
+		buf = append(buf, varBuf[:l]...)
+
+		log.Println(buf)
+		log.Println(varBuf)
+		log.Println("------------")
+
+		buf = append(buf, ac.Contract...)
+
+		log.Println(buf)
+		log.Println(varBuf)
+		log.Println("------------")
+
+		l = packVaruint(ac.Txs, varBuf)
+		buf = append(buf, varBuf[:l]...)
+
+		log.Println(buf)
+		log.Println(varBuf)
+		log.Println("------------")
+		log.Println("End contract")
+	}*/
+
+	/*log.Println("Buffer")
+	log.Println(string(buf))
+
+	tt, l := unpackVaruint(buf)
+	buf = buf[l:]
+
+	nct, l := unpackVaruint(buf)
+	buf = buf[l:]
+
+	log.Printf("TotalTxs: %d\n", tt)
+	log.Printf("NonContractTxs: %d\n", nct)
+	log.Println("Contracts: ")
+
+	for len(buf) > 0 {
+		t, l := unpackVaruint(buf)
+		buf = buf[l:]
+
+		log.Printf("Type: %d\n", t)
+
+		var cl int
+
+		if t == TronTypeTrc10Contract {
+			cl = trx.TronTypeTokenDescriptorLen
+		} else {
+			cl = trx.TronTypeAddressDescriptorLen
+		}
+
+		contract := append(bchain.AddressDescriptor(nil), buf[:cl]...)
+		buf = buf[cl:]
+
+		txs, l := unpackVaruint(buf)
+		buf = buf[l:]
+
+		log.Printf("Type: %d\n", t)
+		log.Printf("Contract: %s\n", string(contract))
+		log.Printf("Txs: %d\n", txs)
+		log.Println("-------")
+	}*/
+
+	/*log.Println("Running test")
 
 	c := trx.NewConfig()
 	c.TronNodeRPC = "http://192.168.110.34:8090"
 	c.SolidityNodeRPC = "http://192.168.110.34:8091"
 	c.TestNet = false
 
-	rc := trx.NewClient(c)
+	//rc := trx.NewClient(c)
 
-	log.Println(hex.EncodeToString([]byte("TRXTwitter")))
-	
+	config, err := ioutil.ReadFile("./bin/config.json")
+	if err != nil {
+		log.Println(err)
+	}
+
+	rpc, err := trx.NewTronRpcFulfilled(config)
+
+	if err != nil {
+		log.Println(err)
+
+		os.Exit(0)
+	}
+
+	tx, err := rpc.GetTransaction("asfasfasfasfasfasf")
+
+	if err != nil {
+		log.Println(err)
+		os.Exit(0)
+	}
+
+	log.Println(tx.Txid)*/
+
+	/*log.Println(hex.EncodeToString([]byte("TRXTwitter")))
+
 	ai, err := rc.GetAssetInfoByName("54525854776974746572")
 
 	if err != nil {
 		log.Println(err)
 	}
 
-	log.Println(ai)
+	log.Println(ai)*/
 
 	/*_, err := rc.GetBlockByNum(0)
 

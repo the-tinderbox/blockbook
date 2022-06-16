@@ -111,7 +111,7 @@ var (
 func init() {
 	glog.MaxSize = 1024 * 1024 * 8
 	glog.CopyStandardLogTo("INFO")
-	log.Println("Started blockbook!")
+	log.Println("Blockbook initialized!")
 }
 
 func main() {
@@ -171,10 +171,14 @@ func mainWithExitCode() int {
 		return exitCodeFatal
 	}
 
+	log.Println("Getting blockchain...")
+
 	if chain, mempool, err = getBlockChainWithRetry(coin, *blockchain, pushSynchronizationHandler, metrics, 120); err != nil {
 		glog.Error("rpc: ", err)
 		return exitCodeFatal
 	}
+
+	log.Println("Loading DB...")
 
 	index, err = db.NewRocksDB(*dbPath, *dbCache, *dbMaxOpenFiles, chain.GetChainParser(), metrics)
 	if err != nil {

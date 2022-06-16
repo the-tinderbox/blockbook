@@ -7,8 +7,27 @@ import (
 	"github.com/imroc/req"
 	"github.com/juju/errors"
 	"github.com/trezor/blockbook/bchain"
+	"io/ioutil"
 	"log"
 	"math/big"
+	"strconv"
+	"sync"
+	"time"
+)
+
+var (
+	// ErrBlockNotFound is returned when block is not found
+	ErrBlockNotFound = errors.New("Block not found")
+	// ErrAddressMissing is returned if address is not specified
+	ErrAddressMissing = errors.New("Address missing")
+	// ErrTxidMissing is returned if txid is not specified
+	ErrTxidMissing = errors.New("Txid missing")
+	// ErrTxNotFound is returned if transaction was not found
+	ErrTxNotFound = errors.New("Tx not found")
+	// ErrTrc10TokenNotFound is returned if trc-10 token was not found
+	ErrTrc10TokenNotFound = errors.New("TRC 10 token not found")
+	// ErrTrc20TokenNotFound is returned if trc-20 token was not found
+	ErrTrc20TokenNotFound = errors.New("TRC 20 token not found")
 )
 
 type Configuration struct {
@@ -28,6 +47,11 @@ type TronRPC struct {
 	ChainConfig *Configuration
 	Mempool     *Mempool
 	Parser      *TronParser
+
+	chanNewBlock  chan uint32
+	bestBlockLock sync.Mutex
+	bestBlock     uint32
+	bestBlockTime int64
 }
 
 func NewTronRpcFulfilled(config json.RawMessage) (*TronRPC, error) {
@@ -58,15 +82,9 @@ func NewTronRpcFulfilled(config json.RawMessage) (*TronRPC, error) {
 }
 
 func NewTronRPC(config json.RawMessage, pushHandler func(bchain.NotificationType)) (bchain.BlockChain, error) {
-	var err error
-	var c Configuration
-	err = json.Unmarshal(config, &c)
+	c, err := NewRPCConfig(config)
 	if err != nil {
-		return nil, errors.Annotatef(err, "Invalid configuration file")
-	}
-	// keep at least 100 mappings block->addresses to allow rollback
-	if c.BlockAddressesToKeep < 100 {
-		c.BlockAddressesToKeep = 100
+		return nil, err
 	}
 
 	cc := NewConfig()
@@ -77,11 +95,46 @@ func NewTronRPC(config json.RawMessage, pushHandler func(bchain.NotificationType
 	s := &TronRPC{
 		BaseChain:   &bchain.BaseChain{},
 		rpc:         NewClient(cc),
-		ChainConfig: &c,
+		ChainConfig: c,
 		Parser:      NewTronParser(c.BlockAddressesToKeep),
 	}
 
+	// New blocks notifier
+	s.chanNewBlock = make(chan uint32)
+	go func() {
+		for {
+			h, ok := <-s.chanNewBlock
+			if !ok {
+				break
+			}
+			glog.V(2).Info("rpc: new block header ", h)
+
+			s.bestBlockLock.Lock()
+			s.bestBlock = h
+			s.bestBlockTime = time.Now().Unix()
+			s.bestBlockLock.Unlock()
+
+			// notify blockbook
+			pushHandler(bchain.NotificationNewBlock)
+		}
+	}()
+
 	return s, nil
+}
+
+func NewRPCConfig(config json.RawMessage) (c *Configuration, err error) {
+	//var err error
+	//var c Configuration
+	err = json.Unmarshal(config, &c)
+	if err != nil {
+		return nil, errors.Annotatef(err, "Invalid configuration file")
+	}
+	// keep at least 100 mappings block->addresses to allow rollback
+	if c.BlockAddressesToKeep < 100 {
+		c.BlockAddressesToKeep = 100
+	}
+
+	return c, nil
 }
 
 func (b *TronRPC) Initialize() error {
@@ -95,9 +148,49 @@ func (b *TronRPC) Initialize() error {
 
 	glog.Info("rpc: block chain ", b.Network)
 
-	// TODO: wait for new blocks
+	b.subscribeForNewBlocks()
 
 	return nil
+}
+
+func (b *TronRPC) subscribeForNewBlocks() {
+	ticker := time.NewTicker(1 * time.Second)
+	done := make(chan bool)
+
+	go func() {
+		for {
+			select {
+			case <-done:
+				return
+			case <-ticker.C:
+				data, err := ioutil.ReadFile("/blockbook/config.json")
+				if err != nil {
+					log.Println("Error reading configfile")
+				}
+				var config json.RawMessage
+				err = json.Unmarshal(data, &config)
+				if err != nil {
+					log.Println("Error parsing configfile")
+				}
+
+				c, err := NewRPCConfig(config)
+
+				if err != nil {
+					log.Println("Error creating config")
+				}
+
+				if b.ChainConfig.StopAtBlock != c.StopAtBlock {
+					if c.StopAtBlock > b.ChainConfig.StopAtBlock {
+						b.chanNewBlock <- c.StopAtBlock
+
+						log.Printf("Stop trigger at %d\n", c.StopAtBlock)
+					}
+
+					b.ChainConfig = c
+				}
+			}
+		}
+	}()
 }
 
 func (b *TronRPC) CreateMempool(chain bchain.BlockChain) (bchain.Mempool, error) {
@@ -174,7 +267,7 @@ func (b *TronRPC) GetBestBlockHeight() (uint32, error) {
 }
 
 func (b *TronRPC) GetBlockHash(height uint32) (string, error) {
-	bl, err := b.rpc.GetBlockByNum(uint64(height))
+	bl, err := b.rpc.GetBlockByNum(height)
 
 	if err != nil {
 		return "", err
@@ -218,13 +311,35 @@ func (b *TronRPC) computeConfirmations(n uint64) (uint32, error) {
 	return bb - uint32(n) + 1, nil
 }
 
-func (b *TronRPC) GetBlock(hash string, height uint32) (*bchain.Block, error) {
-	log.Printf("Block ["+hash+"] %v\n", height)
+func (b *TronRPC) GetBlock(hash string, height uint32) (bbk *bchain.Block, err error) {
+	/*if hash == "" {
+		hash, err = b.GetBlockHash(height)
 
-	bl, err := b.rpc.GetBlockByID(hash)
+		if err != nil {
+			return nil, err
+		}
+	}*/
+
+	/*
+	 * If height >= stop trigger - return block not found error
+	 */
+	bh, err := b.GetBestBlockHeight()
 	if err != nil {
 		return nil, err
 	}
+
+	if height > bh {
+		return nil, bchain.ErrBlockNotFound
+	}
+
+	bl, err := b.rpc.GetBlockByNum(height)
+	if err != nil {
+		return nil, err
+	}
+
+	hash = bl.Hash
+
+	//log.Printf("Block ["+hash+"] %d | TXS: %d\n", height, len(bl.Tx))
 
 	bbh, err := b.tronHeaderToBlockHeader(bl)
 	if err != nil {
@@ -233,7 +348,22 @@ func (b *TronRPC) GetBlock(hash string, height uint32) (*bchain.Block, error) {
 
 	btxs := make([]bchain.Tx, bl.GetTransactionsCount())
 
+	// Load batch of transactions info
+	txsInfo := make(map[string]*TransactionInfo)
+
+	if bl.GetTransactionsCount() > 0 {
+		txsInfo, err = b.rpc.GetTransactionInfoByBlockNum(bl.Height)
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	for i, tx := range bl.GetTransactions() {
+		txInfo, ok := txsInfo[tx.TxID]
+		if ok {
+			tx.Info = txInfo
+		}
+
 		btx, err := tronTxToTx(tx, bbh.Time, uint32(bbh.Confirmations))
 		if err != nil {
 			return nil, errors.Annotatef(err, "hash %v, height %v, txid %v", hash, height, tx.TxID)
@@ -242,12 +372,12 @@ func (b *TronRPC) GetBlock(hash string, height uint32) (*bchain.Block, error) {
 		btxs[i] = *btx
 	}
 
-	bbk := bchain.Block{
+	bbk = &bchain.Block{
 		BlockHeader: *bbh,
 		Txs:         btxs,
 	}
 
-	return &bbk, nil
+	return bbk, nil
 }
 
 func (b *TronRPC) GetBlockInfo(hash string) (*bchain.BlockInfo, error) {
@@ -294,10 +424,11 @@ func (b *TronRPC) GetTransaction(txid string) (*bchain.Tx, error) {
 
 	tx, err := b.rpc.GetTransactionByID(txid)
 	if err != nil {
-		return nil, err
+		return nil, bchain.ErrTxNotFound
 	}
 
 	c, err := b.computeConfirmations(tx.BlockHeight)
+
 	if err != nil {
 		return nil, err
 	}
@@ -344,22 +475,6 @@ func (b *TronRPC) GetChainParser() bchain.BlockChainParser {
 	return b.Parser
 }
 
-func (b *TronRPC) EthereumTypeGetBalance(addrDesc bchain.AddressDescriptor) (*big.Int, error) {
-	bl, err := b.rpc.GetNowBlock()
-
-	if err != nil {
-		return nil, err
-	}
-
-	bal, err := b.rpc.GetAccountBalance(addrDesc.String(), bl)
-
-	if err != nil {
-		return nil, err
-	}
-
-	return big.NewInt(bal), nil
-}
-
 func (b *TronRPC) EthereumTypeGetNonce(addrDesc bchain.AddressDescriptor) (uint64, error) {
 	return 0, nil
 }
@@ -368,8 +483,22 @@ func (b *TronRPC) EthereumTypeEstimateGas(params map[string]interface{}) (uint64
 	return 0, nil
 }
 
+func isNumeric(s string) bool {
+	_, err := strconv.ParseFloat(s, 64)
+	return err == nil
+}
+
 func (b *TronRPC) TronTypeGetTrc10ContractInfo(contractDesc bchain.AddressDescriptor) (*bchain.Trc10Contract, error) {
-	ai, err := b.rpc.GetAssetInfoByName(string(contractDesc))
+	var (
+		ai  *AssetInfo
+		err error
+	)
+
+	if isNumeric(string(contractDesc)) {
+		ai, err = b.rpc.GetAssetInfoById(string(contractDesc))
+	} else {
+		ai, err = b.rpc.GetAssetInfoByName(string(contractDesc))
+	}
 
 	if err != nil {
 		return nil, err
@@ -379,8 +508,12 @@ func (b *TronRPC) TronTypeGetTrc10ContractInfo(contractDesc bchain.AddressDescri
 		Contract: ai.ID,
 		Name:     ai.Name,
 		Symbol:   ai.Abr,
-		Decimals: 6,
+		Decimals: ai.Decimals,
 	}, nil
+}
+
+func (b *TronRPC) TronTypeGetTrc10ContractBalance(addrDesc, contractDesc bchain.AddressDescriptor) (*big.Int, error) {
+	return b.rpc.GetTRC10Balance(string(addrDesc), string(contractDesc))
 }
 
 func (b *TronRPC) TronTypeGetTrc20ContractInfo(contractDesc bchain.AddressDescriptor) (*bchain.Trc20Contract, error) {
@@ -393,7 +526,53 @@ func (b *TronRPC) TronTypeGetTrc20ContractInfo(contractDesc bchain.AddressDescri
 	return &bchain.Trc20Contract{
 		Contract: ai.ContractAddress,
 		Name:     ai.Name,
-		Symbol:   ai.Name,
-		Decimals: 6,
+		Symbol:   ai.Symbol,
+		Decimals: ai.Decimals,
 	}, nil
+}
+
+func (b *TronRPC) TronTypeGetAccount(addrDesc bchain.AddressDescriptor) (*bchain.TronAccount, error) {
+	a, exist, err := b.rpc.GetTRXAccount(string(addrDesc))
+
+	if err != nil {
+		return nil, err
+	}
+
+	if !exist {
+		return nil, ErrAddressMissing
+	} else {
+		taa, err := a.GetAddress(b.ChainConfig.TestNet)
+
+		if err != nil {
+			return nil, err
+		}
+
+		v := make([]*bchain.TronAccountVote, 0)
+		for _, av := range a.Votes {
+			v = append(v, &bchain.TronAccountVote{
+				Address: av.Address,
+				Count:   av.Count,
+			})
+		}
+
+		f := make([]*bchain.TronAccountFrozenBalance, 0)
+		for _, af := range a.Frozen {
+			f = append(f, &bchain.TronAccountFrozenBalance{
+				Balance:    af.Balance,
+				ExpireTime: af.ExpireTime,
+			})
+		}
+
+		ta := &bchain.TronAccount{
+			Name:    a.Name,
+			Address: taa,
+			Balance: a.Balance,
+			Votes:   v,
+			Frozen:  f,
+			Asset:   a.Asset,
+			AssetV2: a.AssetV2,
+		}
+
+		return ta, nil
+	}
 }

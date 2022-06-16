@@ -454,6 +454,7 @@ func (s *PublicServer) parseTemplates() []*template.Template {
 		"formatNumber":             formatNumber,
 		"formatUint32":             formatUint32,
 		"formatInt":                formatInt,
+		"formatInt64":              formatInt64,
 		"syncProgress":             syncProgress,
 		"formatUnixTime":           formatUnixTime,
 		"formatAmount":             s.formatAmount,
@@ -514,7 +515,7 @@ func (s *PublicServer) parseTemplates() []*template.Template {
 		t[indexTpl] = createTemplate("./static/templates/index_trontype.html", "./static/templates/base.html")
 		t[txTpl] = createTemplate("./static/templates/tx_trontype.html", "./static/templates/txdetail_trontype.html", "./static/templates/base.html")
 		//t[txTpl] = createTemplate("./static/templates/tx_trontype.html", "./static/templates/txdetail_trontype.html", "./static/templates/base.html")
-		t[addressTpl] = createTemplate("./static/templates/address.html", "./static/templates/txdetail_trontype.html", "./static/templates/paging.html", "./static/templates/base.html")
+		t[addressTpl] = createTemplate("./static/templates/address_trontype.html", "./static/templates/txdetail_trontype.html", "./static/templates/paging.html", "./static/templates/base.html")
 		t[blockTpl] = createTemplate("./static/templates/block.html", "./static/templates/txdetail_trontype.html", "./static/templates/paging.html", "./static/templates/base.html")
 	} else {
 		t[indexTpl] = createTemplate("./static/templates/index.html", "./static/templates/base.html")
@@ -544,6 +545,10 @@ func formatTime(t time.Time) string {
 }
 
 func formatInt(number int, decimals uint, decPoint, thousandsSep string) string {
+	return formatNumber(float64(number), decimals, decPoint, thousandsSep)
+}
+
+func formatInt64(number int64, decimals uint, decPoint, thousandsSep string) string {
 	return formatNumber(float64(number), decimals, decPoint, thousandsSep)
 }
 

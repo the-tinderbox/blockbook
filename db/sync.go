@@ -371,14 +371,20 @@ ConnectLoop:
 			close(terminating)
 			break ConnectLoop
 		default:
-			hash, err = w.chain.GetBlockHash(h)
-			if err != nil {
-				glog.Error("GetBlockHash error ", err)
-				w.metrics.IndexResyncErrors.With(common.Labels{"error": "failure"}).Inc()
-				time.Sleep(time.Millisecond * 500)
-				continue
+			if w.chain.GetChainParser().GetChainType() == bchain.ChainTronType {
+				// get rid of redundant getting of block hash for tron type
+				hch <- hashHeight{height: h}
+			} else {
+				hash, err = w.chain.GetBlockHash(h)
+				if err != nil {
+					glog.Error("GetBlockHash error ", err)
+					w.metrics.IndexResyncErrors.With(common.Labels{"error": "failure"}).Inc()
+					time.Sleep(time.Millisecond * 500)
+					continue
+				}
+				hch <- hashHeight{hash, h}
 			}
-			hch <- hashHeight{hash, h}
+
 			if h > 0 && h%1000 == 0 {
 				w.metrics.BlockbookBestHeight.Set(float64(h))
 				glog.Info("connecting block ", h, " ", hash, ", elapsed ", time.Since(start), " ", w.db.GetAndResetConnectBlockStats())
