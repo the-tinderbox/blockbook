@@ -53,7 +53,7 @@ func (c *TronTokenCache) GetToken(token string) (*bchain.Trc10Token, error) {
 
 	if c.enabled {
 		err = c.db.PutTronToken(t)
-		
+
 		if err != nil {
 			glog.Warning("PutTronToken ", t.Contract, ",error ", err)
 		}

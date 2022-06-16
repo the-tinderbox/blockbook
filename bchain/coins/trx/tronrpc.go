@@ -420,7 +420,7 @@ func (b *TronRPC) GetMempoolTransactions() ([]string, error) {
 }
 
 func (b *TronRPC) GetTransaction(txid string) (*bchain.Tx, error) {
-	log.Println("Loading transaction [" + txid + "] info")
+	//log.Println("Loading transaction [" + txid + "] info")
 
 	tx, err := b.rpc.GetTransactionByID(txid)
 	if err != nil {
@@ -441,7 +441,7 @@ func (b *TronRPC) GetTransactionForMempool(txid string) (*bchain.Tx, error) {
 }
 
 func (b *TronRPC) GetTransactionSpecific(tx *bchain.Tx) (json.RawMessage, error) {
-	log.Println("Get transaction specific for [" + tx.Txid + "]")
+	//log.Println("Get transaction specific for [" + tx.Txid + "]")
 
 	csd, ok := tx.CoinSpecificData.(TransactionSpecificData)
 	if !ok {

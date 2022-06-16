@@ -580,12 +580,16 @@ func (d *RocksDB) GetTronToken(token string) (*bchain.Trc10Token, error) {
 	defer val.Free()
 	buf := val.Data()
 
-	// Determine if read data is pointer or not and return pointer value
-	if binary.Size(buf) > 0 && string(buf[:3]) == TronTokenCachePointerPrefix {
-		return d.GetTronToken(string(buf[3:]))
+	if binary.Size(buf) > 0 {
+		// Determine if read data is pointer or not and return pointer value
+		if string(buf[:3]) == TronTokenCachePointerPrefix {
+			return d.GetTronToken(string(buf[3:]))
+		}
+
+		return unpackToken(buf), nil
 	}
 
-	return unpackToken(buf), nil
+	return nil, nil
 }
 
 // PutTronToken stores token in db

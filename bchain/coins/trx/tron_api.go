@@ -192,7 +192,7 @@ func (c *Client) GetBlockByID(blockID string) (block *Block, err error) {
 }
 
 func (c *Client) GetTransactionByID(txID string) (*Transaction, error) {
-	log.Println("Get transaction by id [" + txID + "]")
+	//log.Println("Get transaction by id [" + txID + "]")
 
 	r, err := c.TronCall("/wallet/gettransactionbyid", req.Param{"value": txID})
 
@@ -222,7 +222,7 @@ func (c *Client) GetTransactionByID(txID string) (*Transaction, error) {
 }
 
 func (c *Client) GetTransactionInfoById(txID string) (txInfo *TransactionInfo, err error) {
-	log.Println("Loading txInfo [" + txID + "]")
+	//log.Println("Loading txInfo [" + txID + "]")
 
 	r, err := c.TronCall("/wallet/gettransactioninfobyid", req.Param{"value": txID})
 	if err != nil {
