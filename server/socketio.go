@@ -33,8 +33,8 @@ type SocketIoServer struct {
 }
 
 // NewSocketIoServer creates new SocketIo interface to blockbook and returns its handle
-func NewSocketIoServer(db *db.RocksDB, chain bchain.BlockChain, mempool bchain.Mempool, txCache *db.TxCache, metrics *common.Metrics, is *common.InternalState) (*SocketIoServer, error) {
-	api, err := api.NewWorker(db, chain, mempool, txCache, metrics, is)
+func NewSocketIoServer(db *db.RocksDB, chain bchain.BlockChain, mempool bchain.Mempool, txCache *db.TxCache, tronTokenCache *db.TronTokenCache, metrics *common.Metrics, is *common.InternalState) (*SocketIoServer, error) {
+	api, err := api.NewWorker(db, chain, mempool, txCache, tronTokenCache, metrics, is)
 	if err != nil {
 		return nil, err
 	}

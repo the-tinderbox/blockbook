@@ -25,27 +25,29 @@ import (
 
 // Worker is handle to api worker
 type Worker struct {
-	db          *db.RocksDB
-	txCache     *db.TxCache
-	chain       bchain.BlockChain
-	chainParser bchain.BlockChainParser
-	chainType   bchain.ChainType
-	mempool     bchain.Mempool
-	is          *common.InternalState
-	metrics     *common.Metrics
+	db             *db.RocksDB
+	txCache        *db.TxCache
+	tronTokenCache *db.TronTokenCache
+	chain          bchain.BlockChain
+	chainParser    bchain.BlockChainParser
+	chainType      bchain.ChainType
+	mempool        bchain.Mempool
+	is             *common.InternalState
+	metrics        *common.Metrics
 }
 
 // NewWorker creates new api worker
-func NewWorker(db *db.RocksDB, chain bchain.BlockChain, mempool bchain.Mempool, txCache *db.TxCache, metrics *common.Metrics, is *common.InternalState) (*Worker, error) {
+func NewWorker(db *db.RocksDB, chain bchain.BlockChain, mempool bchain.Mempool, txCache *db.TxCache, tronTokenCache *db.TronTokenCache, metrics *common.Metrics, is *common.InternalState) (*Worker, error) {
 	w := &Worker{
-		db:          db,
-		txCache:     txCache,
-		chain:       chain,
-		chainParser: chain.GetChainParser(),
-		chainType:   chain.GetChainParser().GetChainType(),
-		mempool:     mempool,
-		is:          is,
-		metrics:     metrics,
+		db:             db,
+		txCache:        txCache,
+		tronTokenCache: tronTokenCache,
+		chain:          chain,
+		chainParser:    chain.GetChainParser(),
+		chainType:      chain.GetChainParser().GetChainType(),
+		mempool:        mempool,
+		is:             is,
+		metrics:        metrics,
 	}
 	if w.chainType == bchain.ChainBitcoinType {
 		w.initXpubCache()
@@ -508,13 +510,14 @@ func (w *Worker) getTokensFromTrc10(trc10 []bchain.Trc10Transfer) []TokenTransfe
 			glog.Errorf("GetAddrDescFromAddress error %v, contract %v", err, e.Contract)
 			continue
 		}
-		trc10c, err := w.chain.TronTypeGetTrc10ContractInfo(cd)
+
+		trc10c, err := w.getTronTrc10Token(cd)
 		if err != nil {
-			glog.Errorf("GetTrc10ContractInfo error %v, contract %v", err, e.Contract)
+			glog.Errorf("getTronTrc10Token error %v, contract %v", err, e.Contract)
 		}
 
 		if trc10c == nil {
-			trc10c = &bchain.Trc10Contract{Name: e.Contract}
+			trc10c = &bchain.Trc10Token{Name: e.Contract}
 		}
 
 		tokens[i] = TokenTransfer{
@@ -781,18 +784,28 @@ func (w *Worker) getEthereumToken(index int, addrDesc, contract bchain.AddressDe
 	}, nil
 }
 
-func (w *Worker) getTronToken(index int, contract bchain.AddressDescriptor, txs int) (*Token, error) {
-	ci, err := w.chain.TronTypeGetTrc10ContractInfo(contract)
+func (w *Worker) getTronTrc10Token(contract bchain.AddressDescriptor) (*bchain.Trc10Token, error) {
+	ti, err := w.tronTokenCache.GetToken(string(contract))
 	if err != nil {
-		return nil, errors.Annotatef(err, "TronTypeGetTrc10ContractInfo %v", contract)
+		return nil, errors.Annotatef(err, "getTronTrc10Token %v", contract)
 	}
-	if ci == nil {
-		ci = &bchain.Trc10Contract{}
+	if ti == nil {
+		ti = &bchain.Trc10Token{}
 		addresses, _, _ := w.chainParser.GetAddressesFromAddrDesc(contract)
 		if len(addresses) > 0 {
-			ci.Contract = addresses[0]
-			ci.Name = addresses[0]
+			ti.Contract = addresses[0]
+			ti.Name = addresses[0]
 		}
+	}
+
+	return ti, nil
+}
+
+func (w *Worker) getTronToken(index int, contract bchain.AddressDescriptor, txs int) (*Token, error) {
+	ci, err := w.getTronTrc10Token(contract)
+
+	if err != nil {
+		return nil, errors.Annotatef(err, "getTronToken %v", contract)
 	}
 
 	return &Token{
@@ -807,9 +820,6 @@ func (w *Worker) getTronToken(index int, contract bchain.AddressDescriptor, txs 
 }
 
 func (w *Worker) getTronContract(index int, contract bchain.AddressDescriptor, txs int) (*Token, error) {
-	//var b *big.Int
-	//validContract := true
-
 	ci, err := w.chain.TronTypeGetTrc20ContractInfo(contract)
 	if err != nil {
 		return nil, errors.Annotatef(err, "TronTypeGetTrc20ContractInfo %v", string(contract))
@@ -821,7 +831,6 @@ func (w *Worker) getTronContract(index int, contract bchain.AddressDescriptor, t
 			ci.Contract = addresses[0]
 			ci.Name = addresses[0]
 		}
-		//validContract = false
 	}
 
 	// do not read contract balances etc in case of Basic option
@@ -963,11 +972,11 @@ func (w *Worker) addressIsTronTrc10Token(addrDesc bchain.AddressDescriptor) bool
 	return len(addr[0]) == 7 || len(addr[0]) <= 30
 }
 
-func (w *Worker) getTronTypeAddressBalances(addrDesc bchain.AddressDescriptor, details AccountDetails, filter *AddressFilter) (*db.AddrBalance, string, []Token, []*bchain.TronAccountFrozenBalance, []*bchain.TronAccountVote, *bchain.Trc10Contract, *bchain.Trc20Contract, int, int, error) {
+func (w *Worker) getTronTypeAddressBalances(addrDesc bchain.AddressDescriptor, details AccountDetails, filter *AddressFilter) (*db.AddrBalance, string, []Token, []*bchain.TronAccountFrozenBalance, []*bchain.TronAccountVote, *bchain.Trc10Token, *bchain.Trc20Contract, int, int, error) {
 	var (
 		ba             *db.AddrBalance
 		tokens         []Token
-		ci10           *bchain.Trc10Contract
+		ci10           *bchain.Trc10Token
 		ci20           *bchain.Trc20Contract
 		nonContractTxs int
 		ta             *bchain.TronAccount
@@ -1202,7 +1211,7 @@ func (w *Worker) GetAddress(address string, page int, txsOnPage int, option Acco
 		tokens                   []Token
 		contracts                []Token
 		erc20c                   *bchain.Erc20Contract
-		trc10c                   *bchain.Trc10Contract
+		trc10c                   *bchain.Trc10Token
 		trc20c                   *bchain.Trc20Contract
 		trcfrozen                []*bchain.TronAccountFrozenBalance
 		trcvotes                 []*bchain.TronAccountVote

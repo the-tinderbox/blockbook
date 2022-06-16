@@ -71,7 +71,8 @@ var (
 
 	explorerURL = flag.String("explorer", "", "address of blockchain explorer")
 
-	noTxCache = flag.Bool("notxcache", false, "disable tx cache")
+	noTxCache        = flag.Bool("notxcache", false, "disable tx cache")
+	noTronTokenCache = flag.Bool("notrontokencache", false, "disable tron token cache")
 
 	enableSubNewTx = flag.Bool("enablesubnewtx", false, "enable support for subscribing to all new transactions")
 
@@ -97,6 +98,7 @@ var (
 	mempool                       bchain.Mempool
 	index                         *db.RocksDB
 	txCache                       *db.TxCache
+	tronTokenCache                *db.TronTokenCache
 	metrics                       *common.Metrics
 	syncWorker                    *db.SyncWorker
 	internalState                 *common.InternalState
@@ -268,6 +270,11 @@ func mainWithExitCode() int {
 		return exitCodeFatal
 	}
 
+	if tronTokenCache, err = db.NewTronTokenCache(index, chain, metrics, internalState, !*noTronTokenCache); err != nil {
+		glog.Error("TronTokenCache ", err)
+		return exitCodeFatal
+	}
+
 	// report BlockbookAppInfo metric, only log possible error
 	if err = blockbookAppInfoMetric(index, chain, txCache, internalState, metrics); err != nil {
 		glog.Error("blockbookAppInfoMetric ", err)
@@ -392,7 +399,7 @@ func getBlockChainWithRetry(coin string, configfile string, pushHandler func(bch
 }
 
 func startInternalServer() (*server.InternalServer, error) {
-	internalServer, err := server.NewInternalServer(*internalBinding, *certFiles, index, chain, mempool, txCache, metrics, internalState)
+	internalServer, err := server.NewInternalServer(*internalBinding, *certFiles, index, chain, mempool, txCache, tronTokenCache, metrics, internalState)
 	if err != nil {
 		return nil, err
 	}
@@ -412,7 +419,7 @@ func startInternalServer() (*server.InternalServer, error) {
 
 func startPublicServer() (*server.PublicServer, error) {
 	// start public server in limited functionality, extend it after sync is finished by calling ConnectFullPublicInterface
-	publicServer, err := server.NewPublicServer(*publicBinding, *certFiles, index, chain, mempool, txCache, *explorerURL, metrics, internalState, *debugMode, *enableSubNewTx)
+	publicServer, err := server.NewPublicServer(*publicBinding, *certFiles, index, chain, mempool, txCache, tronTokenCache, *explorerURL, metrics, internalState, *debugMode, *enableSubNewTx)
 	if err != nil {
 		return nil, err
 	}
@@ -458,7 +465,7 @@ func performRollback() error {
 }
 
 func blockbookAppInfoMetric(db *db.RocksDB, chain bchain.BlockChain, txCache *db.TxCache, is *common.InternalState, metrics *common.Metrics) error {
-	api, err := api.NewWorker(db, chain, mempool, txCache, metrics, is)
+	api, err := api.NewWorker(db, chain, mempool, txCache, tronTokenCache, metrics, is)
 	if err != nil {
 		return err
 	}
@@ -713,7 +720,7 @@ func normalizeName(s string) string {
 func computeFeeStats(stopCompute chan os.Signal, blockFrom, blockTo int, db *db.RocksDB, chain bchain.BlockChain, txCache *db.TxCache, is *common.InternalState, metrics *common.Metrics) error {
 	start := time.Now()
 	glog.Info("computeFeeStats start")
-	api, err := api.NewWorker(db, chain, mempool, txCache, metrics, is)
+	api, err := api.NewWorker(db, chain, mempool, txCache, tronTokenCache, metrics, is)
 	if err != nil {
 		return err
 	}

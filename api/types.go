@@ -296,7 +296,7 @@ type Address struct {
 	Tokens                []Token                            `json:"tokens,omitempty"`
 	Contracts             []Token                            `json:"contracts,omitempty"`
 	Erc20Contract         *bchain.Erc20Contract              `json:"erc20Contract,omitempty"`
-	Trc10Token            *bchain.Trc10Contract              `json:"trc10Contract,omitempty"`
+	Trc10Token            *bchain.Trc10Token                 `json:"trc10Contract,omitempty"`
 	Trc20Contract         *bchain.Trc20Contract              `json:"trc20Contract,omitempty"`
 	TrcFrozen             []*bchain.TronAccountFrozenBalance `json:"frozen,omitempty"`
 	TrcVotes              []*bchain.TronAccountVote          `json:"votes,omitempty"`

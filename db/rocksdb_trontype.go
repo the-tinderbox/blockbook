@@ -566,3 +566,112 @@ func (d *RocksDB) DisconnectBlockRangeTronType(lower uint32, higher uint32) erro
 	}
 	return err
 }
+
+// TronTokenCachePointerPrefix Tron token can be found by id or by name, so we need to make pointer from name to id
+const TronTokenCachePointerPrefix = "pt:"
+
+// GetTronToken returns token stored in db
+func (d *RocksDB) GetTronToken(token string) (*bchain.Trc10Token, error) {
+	key := []byte(token)
+	val, err := d.db.GetCF(d.ro, d.cfh[cfTronTokens], key)
+	if err != nil {
+		return nil, err
+	}
+	defer val.Free()
+	buf := val.Data()
+
+	// Determine if read data is pointer or not and return pointer value
+	if binary.Size(buf) > 0 && string(buf[:3]) == TronTokenCachePointerPrefix {
+		return d.GetTronToken(string(buf[3:]))
+	}
+
+	return unpackToken(buf), nil
+}
+
+// PutTronToken stores token in db
+func (d *RocksDB) PutTronToken(token *bchain.Trc10Token) error {
+	key := []byte(token.Contract)
+	pointerKey := []byte(token.Name)
+
+	buf := packToken(token)
+
+	// Write token to id
+	err := d.db.PutCF(d.wo, d.cfh[cfTronTokens], key, buf)
+	if err == nil {
+		d.is.AddDBColumnStats(cfTronTokens, 1, int64(len(key)), int64(len(buf)))
+	}
+
+	// And then write pointer from name to id
+	pointerBuf := []byte(TronTokenCachePointerPrefix + token.Contract)
+
+	err = d.db.PutCF(d.wo, d.cfh[cfTronTokens], pointerKey, pointerBuf)
+	if err == nil {
+		d.is.AddDBColumnStats(cfTronTokens, 1, int64(len(pointerKey)), int64(len(pointerBuf)))
+	}
+
+	return err
+}
+
+func unpackToken(buf []byte) *bchain.Trc10Token {
+	// get contract length first and then contract
+	cl, l := unpackVaruint(buf)
+	buf = buf[l:]
+
+	c := buf[:cl]
+	buf = buf[cl:]
+
+	// get name length first and then contract
+	nl, l := unpackVaruint(buf)
+	buf = buf[l:]
+
+	n := buf[:nl]
+	buf = buf[nl:]
+
+	// get symbol length first and then contract
+	sl, l := unpackVaruint(buf)
+	buf = buf[l:]
+
+	s := buf[:sl]
+	buf = buf[sl:]
+
+	d, l := unpackVarint(buf)
+
+	return &bchain.Trc10Token{
+		Contract: string(c),
+		Name:     string(n),
+		Symbol:   string(s),
+		Decimals: d,
+	}
+}
+
+func packToken(token *bchain.Trc10Token) []byte {
+	// Create buffer of maximum size for contract data
+	buf := make([]byte, 64)
+	varBuf := make([]byte, vlq.MaxLen64)
+
+	buf = buf[:0]
+
+	// write contract length first and then contract
+	c := []byte(token.Contract)
+	cl := packVaruint(uint(binary.Size(c)), varBuf)
+	buf = append(buf, varBuf[:cl]...)
+	buf = append(buf, c...)
+
+	// write name length first and then contract
+	n := []byte(token.Name)
+	nl := packVaruint(uint(binary.Size(n)), varBuf)
+	buf = append(buf, varBuf[:nl]...)
+	buf = append(buf, n...)
+
+	// write symbol length first and then contract
+	s := []byte(token.Symbol)
+	sl := packVaruint(uint(binary.Size(s)), varBuf)
+	buf = append(buf, varBuf[:sl]...)
+	buf = append(buf, s...)
+
+	// write decimals
+	dl := packVarint(token.Decimals, varBuf)
+	buf = append(buf, varBuf[:dl]...)
+
+	return buf
+}

@@ -112,6 +112,8 @@ const (
 	cfTxAddresses
 	// EthereumType & TronType
 	cfAddressContracts = cfAddressBalance
+	// TronType
+	cfTronTokens = cfTxAddresses
 )
 
 // common columns

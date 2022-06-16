@@ -45,6 +45,7 @@ type PublicServer struct {
 	https            *http.Server
 	db               *db.RocksDB
 	txCache          *db.TxCache
+	tronTokenCache   *db.TronTokenCache
 	chain            bchain.BlockChain
 	chainParser      bchain.BlockChainParser
 	mempool          bchain.Mempool
@@ -59,19 +60,19 @@ type PublicServer struct {
 
 // NewPublicServer creates new public server http interface to blockbook and returns its handle
 // only basic functionality is mapped, to map all functions, call
-func NewPublicServer(binding string, certFiles string, db *db.RocksDB, chain bchain.BlockChain, mempool bchain.Mempool, txCache *db.TxCache, explorerURL string, metrics *common.Metrics, is *common.InternalState, debugMode bool, enableSubNewTx bool) (*PublicServer, error) {
+func NewPublicServer(binding string, certFiles string, db *db.RocksDB, chain bchain.BlockChain, mempool bchain.Mempool, txCache *db.TxCache, tronTokenCache *db.TronTokenCache, explorerURL string, metrics *common.Metrics, is *common.InternalState, debugMode bool, enableSubNewTx bool) (*PublicServer, error) {
 
-	api, err := api.NewWorker(db, chain, mempool, txCache, metrics, is)
+	api, err := api.NewWorker(db, chain, mempool, txCache, tronTokenCache, metrics, is)
 	if err != nil {
 		return nil, err
 	}
 
-	socketio, err := NewSocketIoServer(db, chain, mempool, txCache, metrics, is)
+	socketio, err := NewSocketIoServer(db, chain, mempool, txCache, tronTokenCache, metrics, is)
 	if err != nil {
 		return nil, err
 	}
 
-	websocket, err := NewWebsocketServer(db, chain, mempool, txCache, metrics, is, enableSubNewTx)
+	websocket, err := NewWebsocketServer(db, chain, mempool, txCache, tronTokenCache, metrics, is, enableSubNewTx)
 	if err != nil {
 		return nil, err
 	}
@@ -92,6 +93,7 @@ func NewPublicServer(binding string, certFiles string, db *db.RocksDB, chain bch
 		websocket:        websocket,
 		db:               db,
 		txCache:          txCache,
+		tronTokenCache:   tronTokenCache,
 		chain:            chain,
 		chainParser:      chain.GetChainParser(),
 		mempool:          mempool,

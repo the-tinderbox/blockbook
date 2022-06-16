@@ -338,7 +338,7 @@ func (c *blockChainWithMetrics) EthereumTypeGetErc20ContractBalance(addrDesc, co
 	return c.b.EthereumTypeGetErc20ContractBalance(addrDesc, contractDesc)
 }
 
-func (c *blockChainWithMetrics) TronTypeGetTrc10ContractInfo(contractDesc bchain.AddressDescriptor) (v *bchain.Trc10Contract, err error) {
+func (c *blockChainWithMetrics) TronTypeGetTrc10ContractInfo(contractDesc bchain.AddressDescriptor) (v *bchain.Trc10Token, err error) {
 	defer func(s time.Time) { c.observeRPCLatency("TronTypeGetTrc10ContractInfo", s, err) }(time.Now())
 	return c.b.TronTypeGetTrc10ContractInfo(contractDesc)
 }

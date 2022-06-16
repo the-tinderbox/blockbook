@@ -227,8 +227,8 @@ type Trc20Transfer struct {
 	Tokens   big.Int
 }
 
-// Trc10Contract contains info about TRC10 contract
-type Trc10Contract struct {
+// Trc10Token contains info about TRC10 contract
+type Trc10Token struct {
 	Contract string `json:"contract"`
 	Name     string `json:"name"`
 	Symbol   string `json:"symbol"`
@@ -367,7 +367,7 @@ type BlockChain interface {
 	EthereumTypeGetErc20ContractBalance(addrDesc, contractDesc AddressDescriptor) (*big.Int, error)
 	// TronType specific
 	TronTypeGetAccount(addrDesc AddressDescriptor) (*TronAccount, error)
-	TronTypeGetTrc10ContractInfo(contractDesc AddressDescriptor) (*Trc10Contract, error)
+	TronTypeGetTrc10ContractInfo(contractDesc AddressDescriptor) (*Trc10Token, error)
 	TronTypeGetTrc10ContractBalance(addrDesc, contractDesc AddressDescriptor) (*big.Int, error)
 	TronTypeGetTrc20ContractInfo(contractDesc AddressDescriptor) (*Trc20Contract, error)
 	TronTypeGetTrc20ContractBalance(addrDesc, contractDesc AddressDescriptor) (*big.Int, error)

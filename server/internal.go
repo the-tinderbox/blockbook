@@ -16,20 +16,21 @@ import (
 
 // InternalServer is handle to internal http server
 type InternalServer struct {
-	https       *http.Server
-	certFiles   string
-	db          *db.RocksDB
-	txCache     *db.TxCache
-	chain       bchain.BlockChain
-	chainParser bchain.BlockChainParser
-	mempool     bchain.Mempool
-	is          *common.InternalState
-	api         *api.Worker
+	https          *http.Server
+	certFiles      string
+	db             *db.RocksDB
+	txCache        *db.TxCache
+	tronTokenCache *db.TronTokenCache
+	chain          bchain.BlockChain
+	chainParser    bchain.BlockChainParser
+	mempool        bchain.Mempool
+	is             *common.InternalState
+	api            *api.Worker
 }
 
 // NewInternalServer creates new internal http interface to blockbook and returns its handle
-func NewInternalServer(binding, certFiles string, db *db.RocksDB, chain bchain.BlockChain, mempool bchain.Mempool, txCache *db.TxCache, metrics *common.Metrics, is *common.InternalState) (*InternalServer, error) {
-	api, err := api.NewWorker(db, chain, mempool, txCache, metrics, is)
+func NewInternalServer(binding, certFiles string, db *db.RocksDB, chain bchain.BlockChain, mempool bchain.Mempool, txCache *db.TxCache, tronTokenCache *db.TronTokenCache, metrics *common.Metrics, is *common.InternalState) (*InternalServer, error) {
+	api, err := api.NewWorker(db, chain, mempool, txCache, tronTokenCache, metrics, is)
 	if err != nil {
 		return nil, err
 	}
@@ -41,15 +42,16 @@ func NewInternalServer(binding, certFiles string, db *db.RocksDB, chain bchain.B
 		Handler: serveMux,
 	}
 	s := &InternalServer{
-		https:       https,
-		certFiles:   certFiles,
-		db:          db,
-		txCache:     txCache,
-		chain:       chain,
-		chainParser: chain.GetChainParser(),
-		mempool:     mempool,
-		is:          is,
-		api:         api,
+		https:          https,
+		certFiles:      certFiles,
+		db:             db,
+		txCache:        txCache,
+		tronTokenCache: tronTokenCache,
+		chain:          chain,
+		chainParser:    chain.GetChainParser(),
+		mempool:        mempool,
+		is:             is,
+		api:            api,
 	}
 
 	serveMux.Handle(path+"favicon.ico", http.FileServer(http.Dir("./static/")))

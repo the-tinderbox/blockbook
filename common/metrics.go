@@ -19,6 +19,7 @@ type Metrics struct {
 	IndexResyncDuration      prometheus.Histogram
 	MempoolResyncDuration    prometheus.Histogram
 	TxCacheEfficiency        *prometheus.CounterVec
+	TronTokenCacheEfficiency *prometheus.CounterVec
 	RPCLatency               *prometheus.HistogramVec
 	IndexResyncErrors        *prometheus.CounterVec
 	IndexDBSize              prometheus.Gauge
@@ -126,6 +127,14 @@ func GetMetrics(coin string) (*Metrics, error) {
 		prometheus.CounterOpts{
 			Name:        "blockbook_txcache_efficiency",
 			Help:        "Efficiency of txCache",
+			ConstLabels: Labels{"coin": coin},
+		},
+		[]string{"status"},
+	)
+	metrics.TronTokenCacheEfficiency = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Name:        "blockbook_trontokencache_efficiency",
+			Help:        "Efficiency of tronTokenCache",
 			ConstLabels: Labels{"coin": coin},
 		},
 		[]string{"status"},

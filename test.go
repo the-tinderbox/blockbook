@@ -1,8 +1,10 @@
 package main
 
 import (
+	"encoding/binary"
 	"github.com/bsm/go-vlq"
 	"github.com/trezor/blockbook/bchain"
+	"log"
 )
 
 const (
@@ -37,7 +39,99 @@ func unpackVaruint(buf []byte) (uint, int) {
 	return uint(i), ofs
 }
 
+func unpackVarint(buf []byte) (int, int) {
+	i, ofs := vlq.Int(buf)
+	return int(i), ofs
+}
+
+func unpackToken(buf []byte) *bchain.Trc10Token {
+	// get contract length first and then contract
+	cl, l := unpackVaruint(buf)
+	buf = buf[l:]
+
+	c := buf[:cl]
+	buf = buf[cl:]
+
+	// get name length first and then contract
+	nl, l := unpackVaruint(buf)
+	buf = buf[l:]
+
+	n := buf[:nl]
+	buf = buf[nl:]
+
+	// get symbol length first and then contract
+	sl, l := unpackVaruint(buf)
+	buf = buf[l:]
+
+	s := buf[:sl]
+	buf = buf[sl:]
+
+	d, l := unpackVarint(buf)
+
+	return &bchain.Trc10Token{
+		Contract: string(c),
+		Name:     string(n),
+		Symbol:   string(s),
+		Decimals: d,
+	}
+}
+
+func packToken(token *bchain.Trc10Token) []byte {
+	// Create buffer of maximum size for contract data
+	buf := make([]byte, 64)
+	varBuf := make([]byte, vlq.MaxLen64)
+
+	buf = buf[:0]
+
+	// write contract length first and then contract
+	c := []byte(token.Contract)
+	cl := packVaruint(uint(binary.Size(c)), varBuf)
+	buf = append(buf, varBuf[:cl]...)
+	buf = append(buf, c...)
+
+	// write name length first and then contract
+	n := []byte(token.Name)
+	nl := packVaruint(uint(binary.Size(n)), varBuf)
+	buf = append(buf, varBuf[:nl]...)
+	buf = append(buf, n...)
+
+	// write symbol length first and then contract
+	s := []byte(token.Symbol)
+	sl := packVaruint(uint(binary.Size(s)), varBuf)
+	buf = append(buf, varBuf[:sl]...)
+	buf = append(buf, s...)
+
+	// write decimals
+	dl := packVarint(token.Decimals, varBuf)
+	buf = append(buf, varBuf[:dl]...)
+
+	return buf
+}
+
 func main() {
+	var token *bchain.Trc10Token
+
+	token = &bchain.Trc10Token{
+		Contract: "test-contract",
+		Name:     "test-contract-name",
+		Symbol:   "tst",
+		Decimals: 10,
+	}
+
+	log.Println(token)
+
+	packed := packToken(token)
+
+	log.Println(packed)
+
+	token = unpackToken(packed)
+
+	log.Println(token)
+
+	pointerBuf := []byte("pt:1000003")
+	log.Println(string(pointerBuf[:3]))
+	log.Println(string(pointerBuf[3:]))
+
 	//st, _ := hex.DecodeString("4372616674796d653630")
 	//log.Println()
 	/*a, _ := trx.EncodeAddress("41734c2f23ab41c52308d1206c4eb5fe8e124e6898", false)

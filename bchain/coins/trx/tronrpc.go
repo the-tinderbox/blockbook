@@ -488,7 +488,7 @@ func isNumeric(s string) bool {
 	return err == nil
 }
 
-func (b *TronRPC) TronTypeGetTrc10ContractInfo(contractDesc bchain.AddressDescriptor) (*bchain.Trc10Contract, error) {
+func (b *TronRPC) TronTypeGetTrc10ContractInfo(contractDesc bchain.AddressDescriptor) (*bchain.Trc10Token, error) {
 	var (
 		ai  *AssetInfo
 		err error
@@ -504,7 +504,7 @@ func (b *TronRPC) TronTypeGetTrc10ContractInfo(contractDesc bchain.AddressDescri
 		return nil, err
 	}
 
-	return &bchain.Trc10Contract{
+	return &bchain.Trc10Token{
 		Contract: ai.ID,
 		Name:     ai.Name,
 		Symbol:   ai.Abr,

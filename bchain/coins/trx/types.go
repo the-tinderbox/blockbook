@@ -450,7 +450,7 @@ func NewTransaction(json *gjson.Result, blockHash string, blockHeight uint64, bl
 			}
 			b.Contract = append(b.Contract, contract)
 
-			if ci.Type == TriggerSmartContract {
+			if ci.Type == TriggerSmartContract && ci.ContractCallType == Trc20Transfer {
 				log.Println("TRANSFER [" + ci.ContractCallType + "]: " + b.TxID)
 			}
 		}
